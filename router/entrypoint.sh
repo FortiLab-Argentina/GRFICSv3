@@ -2,8 +2,8 @@
 set -e
 
 
-# Optional: enable forwarding in iptables (accept by default)
-iptables -P FORWARD ACCEPT
+# Default-deny forwarding; stateful rules applied by app.py on startup
+iptables -P FORWARD DROP
 
 # Show interfaces (for troubleshooting)
 ip -c addr

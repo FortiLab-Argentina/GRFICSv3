@@ -85,17 +85,30 @@ def save_json(path, data):
         json.dump(data, f, indent=2)
 
 
+DEFAULT_RULES = [
+    {
+        "iface_in": "",
+        "iface_out": "",
+        "src": "0.0.0.0/0",
+        "dst": "0.0.0.0/0",
+        "proto": "all",
+        "dport": "",
+        "action": "ACCEPT",
+        "comment": "TEMP - allow all traffic for troubleshooting - DO NOT LEAVE IN PRODUCTION",
+    }
+]
+
 def load_config():
     global pending_rules, dirty, credentials
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
             data = json.load(f)
             pending_rules = data.get("rules", [])
-            # optional: allow storing credentials in the config file
             if "auth" in data:
                 credentials = data["auth"]
     else:
-        pending_rules = []
+        pending_rules = DEFAULT_RULES.copy()
+        save_config()
     dirty = False
 
 
@@ -206,6 +219,7 @@ def add_rule():
     if not dst or dst.lower() == "any": 
         dst = "0.0.0.0/0" 
 
+    comment = request.form.get("comment", "").strip()
     rule = {
         "iface_in": iface_in,
         "iface_out": iface_out,
@@ -214,6 +228,7 @@ def add_rule():
         "proto": proto,
         "dport": dport,
         "action": action,
+        "comment": comment,
     }
 
     pending_rules.append(rule)
@@ -251,7 +266,7 @@ def apply_changes():
     lines = [
         "*filter",
         ":INPUT ACCEPT [0:0]",
-        ":FORWARD ACCEPT [0:0]",
+        ":FORWARD DROP [0:0]",
         ":OUTPUT ACCEPT [0:0]",
         ":LOGDROP - [0:0]",
         ":LOGREJECT - [0:0]",
@@ -259,15 +274,21 @@ def apply_changes():
         "-A LOGDROP -j DROP",
         "-A LOGREJECT -m limit --limit 5/second -j NFLOG --nflog-group 1 --nflog-prefix \"FW REJECT: \" ",
         "-A LOGREJECT -j REJECT",
+        # Allow return traffic for established/related connections (stateful base rules)
+        "-A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+        "-A FORWARD -m conntrack --ctstate INVALID -j DROP",
     ]
     for r in rules:
-        line = f"-A FORWARD -p {r['proto']} -s {r['src']} -d {r['dst']}"
+        proto = r['proto']
+        if proto == 'all':
+            line = f"-A FORWARD -s {r['src']} -d {r['dst']}"
+        else:
+            line = f"-A FORWARD -p {proto} -s {r['src']} -d {r['dst']}"
         if r.get('iface_in'): line += f" -i {r['iface_in']}"
         if r.get('iface_out'): line += f" -o {r['iface_out']}"
-        if r.get('dport') and r['proto'] in ['tcp','udp']: line += f" --dport {r['dport']}"
-        if r["action"] in ["DROP","REJECT"]:
-            act = "LOG" + r["action"]
-            line += f" -j {act}"
+        if r.get('dport') and proto in ['tcp', 'udp']: line += f" --dport {r['dport']}"
+        if r["action"] in ["DROP", "REJECT"]:
+            line += f" -j LOG{r['action']}"
         else:
             line += f" -j {r['action']}"
 
