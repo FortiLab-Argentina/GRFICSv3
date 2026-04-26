@@ -255,14 +255,8 @@ def move_rule():
     return redirect(url_for("index"))
 
 
-@app.route("/apply", methods=["POST"])
-@login_required
-def apply_changes():
-    # Flush FORWARD chain
-    subprocess.run(["iptables", "-F", "FORWARD"], check=False)
-    # Reapply each saved rule
-    load_config()
-    rules = pending_rules
+def build_iptables_rules(rules):
+    """Return an iptables-restore compatible ruleset string for the given rule list."""
     lines = [
         "*filter",
         ":INPUT ACCEPT [0:0]",
@@ -274,7 +268,7 @@ def apply_changes():
         "-A LOGDROP -j DROP",
         "-A LOGREJECT -m limit --limit 5/second -j NFLOG --nflog-group 1 --nflog-prefix \"FW REJECT: \" ",
         "-A LOGREJECT -j REJECT",
-        # Allow return traffic for established/related connections (stateful base rules)
+        # Stateful base rules: pass return traffic, drop invalid packets
         "-A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
         "-A FORWARD -m conntrack --ctstate INVALID -j DROP",
     ]
@@ -291,11 +285,20 @@ def apply_changes():
             line += f" -j LOG{r['action']}"
         else:
             line += f" -j {r['action']}"
-
         lines.append(line)
-
     lines.append("COMMIT")
-    rules_text = "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n"
+
+
+@app.route("/apply", methods=["POST"])
+@login_required
+def apply_changes():
+    # Flush FORWARD chain
+    subprocess.run(["iptables", "-F", "FORWARD"], check=False)
+    # Reapply each saved rule
+    load_config()
+    rules = pending_rules
+    rules_text = build_iptables_rules(rules)
 
     with open(FIREWALL_RULES_PATH, "w") as f:
         f.write(rules_text)
