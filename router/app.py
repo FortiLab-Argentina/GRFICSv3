@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import subprocess
-import json, os, functools
+import json, os, functools, time
+from collections import Counter
 from pathlib import Path
 from datetime import datetime
 
@@ -118,6 +119,97 @@ def save_config():
         json.dump(data, f, indent=2)
 
 
+# --- traffic stats helpers ---
+
+_iface_prev = {}  # {iface: (monotonic_time, {rx_bytes, rx_packets, tx_bytes, tx_packets})}
+
+def read_proc_net_dev():
+    stats = {}
+    try:
+        with open('/proc/net/dev') as f:
+            for line in f.readlines()[2:]:
+                parts = line.split()
+                if len(parts) < 11:
+                    continue
+                iface = parts[0].rstrip(':')
+                stats[iface] = {
+                    'rx_bytes':   int(parts[1]),
+                    'rx_packets': int(parts[2]),
+                    'tx_bytes':   int(parts[9]),
+                    'tx_packets': int(parts[10]),
+                }
+    except FileNotFoundError:
+        pass
+    return stats
+
+
+def get_interface_rates():
+    now = time.monotonic()
+    current = read_proc_net_dev()
+    rates = {}
+    for iface in INTERFACE_LABELS:
+        if iface not in current:
+            rates[iface] = {'rx_bps': 0.0, 'rx_pps': 0.0, 'tx_bps': 0.0, 'tx_pps': 0.0}
+            continue
+        cur = current[iface]
+        if iface in _iface_prev:
+            prev_time, prev = _iface_prev[iface]
+            dt = now - prev_time
+            if dt > 0:
+                rates[iface] = {
+                    'rx_bps': max(0.0, (cur['rx_bytes']   - prev['rx_bytes'])   / dt),
+                    'rx_pps': max(0.0, (cur['rx_packets'] - prev['rx_packets']) / dt),
+                    'tx_bps': max(0.0, (cur['tx_bytes']   - prev['tx_bytes'])   / dt),
+                    'tx_pps': max(0.0, (cur['tx_packets'] - prev['tx_packets']) / dt),
+                }
+            else:
+                rates[iface] = {'rx_bps': 0.0, 'rx_pps': 0.0, 'tx_bps': 0.0, 'tx_pps': 0.0}
+        else:
+            rates[iface] = {'rx_bps': 0.0, 'rx_pps': 0.0, 'tx_bps': 0.0, 'tx_pps': 0.0}
+        _iface_prev[iface] = (now, cur)
+    return rates
+
+
+def parse_conntrack():
+    entries = []
+    try:
+        with open('/proc/net/nf_conntrack') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 5:
+                    continue
+                l4proto = parts[2]
+                ttl = int(parts[4])
+                # TCP has a state word at position 5 before the key=value pairs
+                state = ''
+                if l4proto == 'tcp' and len(parts) > 5 and '=' not in parts[5]:
+                    state = parts[5]
+                # Collect key=value pairs; first occurrence = original direction
+                kv = {}
+                for p in parts:
+                    if '=' in p:
+                        k, v = p.split('=', 1)
+                        if k not in kv:
+                            kv[k] = v
+                entries.append({
+                    'proto': l4proto,
+                    'state': state,
+                    'ttl':   ttl,
+                    'src':   kv.get('src',   '?'),
+                    'dst':   kv.get('dst',   '?'),
+                    'sport': kv.get('sport', ''),
+                    'dport': kv.get('dport', ''),
+                })
+    except (FileNotFoundError, ValueError):
+        pass
+    return entries
+
+
+def get_top_talkers(entries, n=10):
+    counts = Counter(e['src'] for e in entries if e['src'] != '?')
+    return [{'ip': ip, 'connections': count} for ip, count in counts.most_common(n)]
+
+
 # --- login helper/decorator ---
 def login_required(view):
     @functools.wraps(view)
@@ -129,7 +221,7 @@ def login_required(view):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    next_url = request.args.get("next") or url_for("index")
+    next_url = request.args.get("next") or url_for("dashboard")
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
@@ -181,8 +273,42 @@ def parse_iptables_rules():
         rules.append(rule)
     return rules
 
-@app.route("/", endpoint="index")
-@app.route("/firewall")
+@app.route("/dashboard")
+@app.route("/")
+@login_required
+def dashboard():
+    return render_template("dashboard.html", active_page="dashboard", labels=INTERFACE_LABELS)
+
+
+@app.route("/api/stats")
+@login_required
+def api_stats():
+    entries = parse_conntrack()
+    rates = get_interface_rates()
+    return jsonify({
+        'connection_count': len(entries),
+        'interfaces': {
+            iface: {'label': INTERFACE_LABELS.get(iface, iface), **data}
+            for iface, data in rates.items()
+        },
+        'top_talkers': get_top_talkers(entries),
+    })
+
+
+@app.route("/states")
+@login_required
+def states():
+    return render_template("states.html", active_page="states")
+
+
+@app.route("/api/states")
+@login_required
+def api_states():
+    entries = parse_conntrack()
+    return jsonify({'states': entries, 'count': len(entries)})
+
+
+@app.route("/firewall", endpoint="index")
 @app.route("/index")
 @login_required
 def firewall():
