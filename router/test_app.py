@@ -53,6 +53,18 @@ class TestConntrackBaseRules:
         assert result.index("ESTABLISHED,RELATED") < result.index("192.168.90.0/24"), \
             "Stateful conntrack rules must appear before user-defined rules"
 
+    def test_catchall_logdrop_present(self):
+        result = flask_app.build_iptables_rules([])
+        assert "-A FORWARD -j LOGDROP" in result
+
+    def test_catchall_logdrop_after_user_rules(self):
+        rules = [{"proto": "tcp", "src": "192.168.90.0/24", "dst": "192.168.95.2",
+                  "iface_in": "eth2", "iface_out": "", "dport": "502",
+                  "action": "ACCEPT", "comment": ""}]
+        result = flask_app.build_iptables_rules(rules)
+        assert result.index("-A FORWARD -j LOGDROP") > result.index("192.168.90.0/24"), \
+            "Catch-all LOGDROP must appear after user rules"
+
 
 class TestProtoHandling:
     def test_proto_all_omits_p_flag(self):

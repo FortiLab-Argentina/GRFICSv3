@@ -472,6 +472,8 @@ def build_iptables_rules(rules):
         else:
             line += f" -j {r['action']}"
         lines.append(line)
+    # Catch-all: log anything that reaches here before the default DROP policy silently discards it
+    lines.append("-A FORWARD -j LOGDROP")
     lines.append("COMMIT")
     return "\n".join(lines) + "\n"
 
