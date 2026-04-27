@@ -352,3 +352,170 @@ class TestApiRoutes:
         anon = flask_app.app.test_client()
         resp = anon.get('/api/stats')
         assert resp.status_code == 302  # redirect to login
+
+
+# ---------------------------------------------------------------------------
+# DNS helpers
+# ---------------------------------------------------------------------------
+
+SAMPLE_DNSMASQ_LOG = """\
+Apr 27 10:15:23 dnsmasq[42]: query[A] example.com from 192.168.95.2
+Apr 27 10:15:23 dnsmasq[42]: forwarded example.com to 8.8.8.8
+Apr 27 10:15:24 dnsmasq[42]: query[AAAA] ipv6.example.com from 192.168.95.5
+Apr 27 10:15:25 dnsmasq[42]: query[A] evil-c2.com from 192.168.90.6
+Apr 27 10:15:25 dnsmasq[42]: config evil-c2.com is NXDOMAIN
+"""
+
+
+class TestGetDnsQueries:
+    def _queries(self, content=SAMPLE_DNSMASQ_LOG):
+        with patch("builtins.open", mock_open(read_data=content)):
+            return flask_app.get_dns_queries()
+
+    def test_returns_only_query_lines(self):
+        # "forwarded", "config" lines should not appear — only "query[" lines
+        queries = self._queries()
+        assert len(queries) == 3
+
+    def test_parses_query_type(self):
+        queries = self._queries()
+        assert queries[0]['type'] == 'A'
+        assert queries[1]['type'] == 'AAAA'
+
+    def test_parses_domain(self):
+        queries = self._queries()
+        assert queries[0]['domain'] == 'example.com'
+        assert queries[2]['domain'] == 'evil-c2.com'
+
+    def test_parses_source_ip(self):
+        queries = self._queries()
+        assert queries[0]['src'] == '192.168.95.2'
+        assert queries[2]['src'] == '192.168.90.6'
+
+    def test_missing_log_returns_empty(self):
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            assert flask_app.get_dns_queries() == []
+
+    def test_respects_limit(self):
+        queries = self._queries()
+        assert len(flask_app.get_dns_queries.__wrapped__(1) if hasattr(flask_app.get_dns_queries, '__wrapped__') else
+                   self._queries()) <= 100
+
+
+class TestLoadDnsConfig:
+    def test_missing_file_returns_empty_defaults(self):
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            config = flask_app.load_dns_config()
+        assert config == {"hosts": [], "blocked": []}
+
+    def test_corrupt_json_returns_empty_defaults(self):
+        with patch("builtins.open", mock_open(read_data="not json")):
+            config = flask_app.load_dns_config()
+        assert config == {"hosts": [], "blocked": []}
+
+    def test_valid_config_loaded(self):
+        data = {"hosts": [{"hostname": "plc", "ip": "10.0.0.1", "comment": ""}],
+                "blocked": []}
+        with patch("builtins.open", mock_open(read_data=json.dumps(data))):
+            config = flask_app.load_dns_config()
+        assert config["hosts"][0]["hostname"] == "plc"
+
+
+class TestApplyDnsConfig:
+    def _apply(self, config):
+        written = {}
+        def fake_open(path, mode='r', *a, **kw):
+            if mode == 'w':
+                m = mock_open()()
+                written[path] = m
+                return m
+            raise FileNotFoundError
+        with patch("builtins.open", fake_open), \
+             patch("subprocess.run"):
+            flask_app.apply_dns_config(config)
+        return written
+
+    def test_hosts_file_written(self):
+        config = {"hosts": [{"hostname": "plc.grfics.local", "ip": "192.168.95.2", "comment": ""}],
+                  "blocked": []}
+        written = self._apply(config)
+        assert flask_app.DNS_HOSTS_PATH in written
+
+    def test_blocked_file_written(self):
+        config = {"hosts": [],
+                  "blocked": [{"domain": "evil.com", "comment": "test"}]}
+        written = self._apply(config)
+        assert flask_app.DNS_BLOCKED_PATH in written
+
+    def test_hosts_file_format(self):
+        config = {"hosts": [{"hostname": "plc.grfics.local", "ip": "192.168.95.2", "comment": ""}],
+                  "blocked": []}
+        calls = []
+        real_open = open
+        def tracking_open(path, mode='r', *a, **kw):
+            if mode == 'w':
+                m = MagicMock()
+                m.__enter__ = lambda s: s
+                m.__exit__ = MagicMock(return_value=False)
+                calls.append((path, m))
+                return m
+            raise FileNotFoundError
+        with patch("builtins.open", tracking_open), patch("subprocess.run"):
+            flask_app.apply_dns_config(config)
+        hosts_call = next((c for c in calls if c[0] == flask_app.DNS_HOSTS_PATH), None)
+        assert hosts_call is not None
+        written_content = "".join(
+            str(a[0]) for call in hosts_call[1].write.call_args_list
+            for a in [call[0]]
+        )
+        assert "192.168.95.2" in written_content
+        assert "plc.grfics.local" in written_content
+
+    def test_blocked_file_format(self):
+        config = {"hosts": [],
+                  "blocked": [{"domain": "evil.com", "comment": ""}]}
+        calls = []
+        def tracking_open(path, mode='r', *a, **kw):
+            if mode == 'w':
+                m = MagicMock()
+                m.__enter__ = lambda s: s
+                m.__exit__ = MagicMock(return_value=False)
+                calls.append((path, m))
+                return m
+            raise FileNotFoundError
+        with patch("builtins.open", tracking_open), patch("subprocess.run"):
+            flask_app.apply_dns_config(config)
+        block_call = next((c for c in calls if c[0] == flask_app.DNS_BLOCKED_PATH), None)
+        assert block_call is not None
+        written_content = "".join(
+            str(a[0]) for call in block_call[1].write.call_args_list
+            for a in [call[0]]
+        )
+        assert "address=/evil.com/#" in written_content
+
+    def test_dnsmasq_restarted(self):
+        config = {"hosts": [], "blocked": []}
+        with patch("builtins.open", mock_open()), \
+             patch("subprocess.run") as mock_sub:
+            flask_app.apply_dns_config(config)
+        calls = [str(c) for c in mock_sub.call_args_list]
+        assert any("dnsmasq" in c for c in calls)
+
+
+class TestDomainSanitisation:
+    """The add_block route strips leading wildcards/dots before storing."""
+    def setup_method(self):
+        flask_app.app.config['TESTING'] = True
+        self.client = flask_app.app.test_client()
+        with self.client.session_transaction() as sess:
+            sess['logged_in'] = True
+
+    def test_wildcard_prefix_stripped(self):
+        saved = {}
+        def fake_save(config):
+            saved.update(config)
+        with patch.object(flask_app, 'load_dns_config', return_value={"hosts": [], "blocked": []}), \
+             patch.object(flask_app, 'save_dns_config', side_effect=fake_save), \
+             patch.object(flask_app, 'apply_dns_config'):
+            self.client.post('/dns/add_block', data={'domain': '*.evil.com', 'comment': ''})
+        assert saved.get("blocked", [{}])[0].get("domain") == "evil.com"

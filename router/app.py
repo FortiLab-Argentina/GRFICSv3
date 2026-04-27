@@ -27,6 +27,10 @@ FIREWALL_RULES_PATH = "/etc/firewall/rules"
 CONFIG_PATH = "/etc/firewall/config.json"
 IDS_ALERTS_FILE = "/etc/suricata/alerts.json"
 IDS_RULES_FILE = "/etc/suricata/rules/local.rules"
+DNS_CONFIG_PATH = "/etc/firewall/dns_config.json"
+DNS_HOSTS_PATH = "/etc/firewall/dns_hosts"
+DNS_BLOCKED_PATH = "/etc/firewall/dns_blocked.conf"
+DNSMASQ_LOG = "/var/log/dnsmasq/dnsmasq.log"
 
 pending_rules = []
 dirty = False
@@ -208,6 +212,62 @@ def parse_conntrack():
 def get_top_talkers(entries, n=10):
     counts = Counter(e['src'] for e in entries if e['src'] != '?')
     return [{'ip': ip, 'connections': count} for ip, count in counts.most_common(n)]
+
+
+# --- dnsmasq helpers ---
+
+def load_dns_config():
+    try:
+        with open(DNS_CONFIG_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"hosts": [], "blocked": []}
+
+
+def save_dns_config(config):
+    with open(DNS_CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+def apply_dns_config(config):
+    """Write dnsmasq host and block files then restart dnsmasq via supervisorctl."""
+    host_lines = [f"{h['ip']}\t{h['hostname']}" for h in config.get("hosts", [])]
+    with open(DNS_HOSTS_PATH, "w") as f:
+        f.write("\n".join(host_lines) + ("\n" if host_lines else ""))
+
+    block_lines = [f"address=/{b['domain']}/#" for b in config.get("blocked", [])]
+    with open(DNS_BLOCKED_PATH, "w") as f:
+        f.write("\n".join(block_lines) + ("\n" if block_lines else ""))
+
+    subprocess.run(["supervisorctl", "restart", "dnsmasq"], check=False)
+
+
+def get_dns_queries(limit=100):
+    queries = []
+    try:
+        with open(DNSMASQ_LOG) as f:
+            for line in f:
+                if "query[" not in line:
+                    continue
+                parts = line.strip().split()
+                q_idx = next((i for i, p in enumerate(parts) if "query[" in p), None)
+                if q_idx is None:
+                    continue
+                try:
+                    qtype  = parts[q_idx].split("[")[1].rstrip("]")
+                    domain = parts[q_idx + 1]
+                    src    = parts[q_idx + 3] if len(parts) > q_idx + 3 else "?"
+                    queries.append({
+                        "time":   " ".join(parts[:3]),
+                        "type":   qtype,
+                        "domain": domain,
+                        "src":    src,
+                    })
+                except (IndexError, ValueError):
+                    continue
+    except FileNotFoundError:
+        pass
+    return queries[-limit:]
 
 
 # --- login helper/decorator ---
@@ -503,6 +563,84 @@ def firewall_logs():
     entries = parse_firewall_logs(limit=200)
     user = session.get("username")
     return render_template("firewall_logs.html", entries=entries, user=user)
+
+
+@app.route("/dns")
+@login_required
+def dns():
+    config = load_dns_config()
+    queries = get_dns_queries(limit=50)
+    return render_template("dns.html", active_page="dns",
+                           hosts=config.get("hosts", []),
+                           blocked=config.get("blocked", []),
+                           queries=queries)
+
+
+@app.route("/dns/add_host", methods=["POST"])
+@login_required
+def dns_add_host():
+    hostname = request.form.get("hostname", "").strip().lower()
+    ip = request.form.get("ip", "").strip()
+    comment = request.form.get("comment", "").strip()
+    if hostname and ip:
+        config = load_dns_config()
+        config["hosts"].append({"hostname": hostname, "ip": ip, "comment": comment})
+        save_dns_config(config)
+        apply_dns_config(config)
+        flash(f"Host entry added: {hostname} → {ip}", "success")
+    else:
+        flash("Hostname and IP are required.", "danger")
+    return redirect(url_for("dns"))
+
+
+@app.route("/dns/delete_host", methods=["POST"])
+@login_required
+def dns_delete_host():
+    idx = int(request.form["idx"])
+    config = load_dns_config()
+    if 0 <= idx < len(config["hosts"]):
+        removed = config["hosts"].pop(idx)
+        save_dns_config(config)
+        apply_dns_config(config)
+        flash(f"Host entry removed: {removed['hostname']}", "success")
+    return redirect(url_for("dns"))
+
+
+@app.route("/dns/add_block", methods=["POST"])
+@login_required
+def dns_add_block():
+    # Strip leading wildcards/dots so "*.evil.com" and "evil.com" both become "evil.com"
+    domain = request.form.get("domain", "").strip().lower().lstrip("*.").strip(".")
+    comment = request.form.get("comment", "").strip()
+    if domain:
+        config = load_dns_config()
+        config["blocked"].append({"domain": domain, "comment": comment})
+        save_dns_config(config)
+        apply_dns_config(config)
+        flash(f"Domain blocked: {domain}", "success")
+    else:
+        flash("Domain is required.", "danger")
+    return redirect(url_for("dns"))
+
+
+@app.route("/dns/delete_block", methods=["POST"])
+@login_required
+def dns_delete_block():
+    idx = int(request.form["idx"])
+    config = load_dns_config()
+    if 0 <= idx < len(config["blocked"]):
+        removed = config["blocked"].pop(idx)
+        save_dns_config(config)
+        apply_dns_config(config)
+        flash(f"Block removed: {removed['domain']}", "success")
+    return redirect(url_for("dns"))
+
+
+@app.route("/api/dns/queries")
+@login_required
+def api_dns_queries():
+    queries = get_dns_queries(limit=100)
+    return jsonify({"queries": queries, "count": len(queries)})
 
 
 
