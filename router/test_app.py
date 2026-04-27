@@ -142,6 +142,33 @@ class TestOutputStructure:
         assert result.strip().endswith("COMMIT")
 
 
+class TestApplyRulesNow:
+    def test_writes_rules_file_on_fresh_volume(self):
+        """Startup with no pre-existing rules file must still write and apply rules."""
+        written = {}
+        def fake_open(path, mode='r', *a, **kw):
+            if mode == 'w':
+                m = mock_open()()
+                written[path] = m
+                return m
+            raise FileNotFoundError
+        with patch("builtins.open", fake_open), \
+             patch("subprocess.run", return_value=MagicMock(returncode=0)), \
+             patch("os.makedirs"):
+            flask_app._apply_rules_now([])
+        assert flask_app.FIREWALL_RULES_PATH in written
+
+    def test_applies_rules_even_when_no_prior_file(self):
+        """iptables-restore must be called regardless of whether the rules file existed."""
+        sub_calls = []
+        with patch("builtins.open", mock_open()), \
+             patch("subprocess.run", side_effect=lambda cmd, **kw: sub_calls.append(cmd) or MagicMock(returncode=0)), \
+             patch("os.makedirs"):
+            flask_app._apply_rules_now([])
+        restore_calls = [c for c in sub_calls if "iptables-restore" in c]
+        assert len(restore_calls) == 1
+
+
 # ---------------------------------------------------------------------------
 # DEFAULT_RULES — misconfiguration scenario
 # ---------------------------------------------------------------------------

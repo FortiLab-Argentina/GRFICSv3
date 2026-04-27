@@ -478,29 +478,26 @@ def build_iptables_rules(rules):
     return "\n".join(lines) + "\n"
 
 
+def _apply_rules_now(rules):
+    """Write the iptables ruleset for `rules` to disk and load it. Returns the proc result."""
+    os.makedirs(os.path.dirname(FIREWALL_RULES_PATH), exist_ok=True)
+    rules_text = build_iptables_rules(rules)
+    with open(FIREWALL_RULES_PATH, "w") as f:
+        f.write(rules_text)
+    subprocess.run(["iptables", "-F", "FORWARD"], check=False)
+    return subprocess.run(["iptables-restore", "-n", FIREWALL_RULES_PATH])
+
+
 @app.route("/apply", methods=["POST"])
 @login_required
 def apply_changes():
-    # Flush FORWARD chain
-    subprocess.run(["iptables", "-F", "FORWARD"], check=False)
-    # Reapply each saved rule
     load_config()
-    rules = pending_rules
-    rules_text = build_iptables_rules(rules)
-
-    with open(FIREWALL_RULES_PATH, "w") as f:
-        f.write(rules_text)
-
-    proc = subprocess.run(
-        ["iptables-restore", "-n", FIREWALL_RULES_PATH],  # -n = don't flush counters
-    )
-
+    proc = _apply_rules_now(pending_rules)
     if proc.returncode != 0:
         flash("Error applying firewall rules!", "danger")
     else:
         flash("Firewall rules applied successfully.", "success")
     save_config()
-
     return redirect(url_for("index"))
 
 @app.route("/revert", methods=["POST"])
@@ -647,9 +644,6 @@ def api_dns_queries():
 
 
 load_config()
-proc = subprocess.run(
-    ["iptables-restore", "-n", FIREWALL_RULES_PATH],  # -n = don't flush counters
-)
-
+_apply_rules_now(pending_rules)
 
 app.run(host="0.0.0.0", port=5000)
