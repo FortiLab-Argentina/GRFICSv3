@@ -53,17 +53,33 @@ class TestConntrackBaseRules:
         assert result.index("ESTABLISHED,RELATED") < result.index("192.168.90.0/24"), \
             "Stateful conntrack rules must appear before user-defined rules"
 
+    def test_ics_default_allow_present(self):
+        result = flask_app.build_iptables_rules([])
+        assert f"-A FORWARD -s {flask_app.ICS_SUBNET} -j ACCEPT" in result
+
+    def test_ics_default_allow_uses_subnet_not_interface(self):
+        result = flask_app.build_iptables_rules([])
+        # Must not rely on a specific interface name
+        ics_allow_line = next(
+            l for l in result.splitlines()
+            if flask_app.ICS_SUBNET in l and "-j ACCEPT" in l
+        )
+        assert "-i eth" not in ics_allow_line
+
     def test_catchall_logdrop_present(self):
         result = flask_app.build_iptables_rules([])
         assert "-A FORWARD -j LOGDROP" in result
 
-    def test_catchall_logdrop_after_user_rules(self):
+    def test_catchall_logdrop_after_user_rules_and_ics_allow(self):
         rules = [{"proto": "tcp", "src": "192.168.90.0/24", "dst": "192.168.95.2",
-                  "iface_in": "eth2", "iface_out": "", "dport": "502",
+                  "iface_in": "", "iface_out": "", "dport": "502",
                   "action": "ACCEPT", "comment": ""}]
         result = flask_app.build_iptables_rules(rules)
-        assert result.index("-A FORWARD -j LOGDROP") > result.index("192.168.90.0/24"), \
+        logdrop_pos = result.index("-A FORWARD -j LOGDROP")
+        assert result.index("192.168.90.0/24") < logdrop_pos, \
             "Catch-all LOGDROP must appear after user rules"
+        assert result.index(flask_app.ICS_SUBNET) < logdrop_pos, \
+            "Catch-all LOGDROP must appear after ICS default-allow rule"
 
 
 class TestProtoHandling:

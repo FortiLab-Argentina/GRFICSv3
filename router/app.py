@@ -27,6 +27,8 @@ FIREWALL_RULES_PATH = "/etc/firewall/rules"
 CONFIG_PATH = "/etc/firewall/config.json"
 IDS_ALERTS_FILE = "/etc/suricata/alerts.json"
 IDS_RULES_FILE = "/etc/suricata/rules/local.rules"
+ICS_SUBNET = "192.168.95.0/24"   # trusted LAN — default allow outbound
+
 DNS_CONFIG_PATH = "/etc/firewall/dns_config.json"
 DNS_HOSTS_PATH = "/etc/firewall/dns_hosts"
 DNS_BLOCKED_PATH = "/etc/firewall/dns_blocked.conf"
@@ -472,7 +474,11 @@ def build_iptables_rules(rules):
         else:
             line += f" -j {r['action']}"
         lines.append(line)
-    # Catch-all: log anything that reaches here before the default DROP policy silently discards it
+    # Default allow for ICS-originated traffic (trusted → untrusted).
+    # Match on source subnet rather than interface name — interface assignment
+    # is not deterministic in Docker containers.
+    lines.append(f"-A FORWARD -s {ICS_SUBNET} -j ACCEPT")
+    # Catch-all: log and drop everything else (untrusted inbound not matched above)
     lines.append("-A FORWARD -j LOGDROP")
     lines.append("COMMIT")
     return "\n".join(lines) + "\n"
