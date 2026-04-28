@@ -55,9 +55,7 @@ COPY router.conf /etc/supervisor/conf.d/router.conf
 COPY suricata.yaml /etc/suricata/suricata.yaml
 COPY dnsmasq.conf /etc/dnsmasq.conf
 
-# Add DigitalBond Quickdraw ICS/SCADA detection rules
-RUN curl -fsSL https://raw.githubusercontent.com/digitalbond/Quickdraw-Snort/refs/heads/master/all-quickdraw.rules \
-    -o /etc/suricata/rules/quickdraw.rules
+COPY quickdraw.rules /etc/suricata/rules/quickdraw.rules
 COPY ulogd.conf /etc/ulogd.conf
 
 
