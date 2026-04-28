@@ -363,10 +363,14 @@ def states():
     return render_template("states.html", active_page="states")
 
 
+_CLOSED_STATES = {'TIME_WAIT', 'CLOSE', 'CLOSE_WAIT', 'LAST_ACK'}
+
 @app.route("/api/states")
 @login_required
 def api_states():
-    entries = parse_conntrack()
+    entries = [e for e in parse_conntrack()
+               if e['state'] not in _CLOSED_STATES
+               and e['src'] != '127.0.0.1' and e['dst'] != '127.0.0.1']
     return jsonify({'states': entries, 'count': len(entries)})
 
 

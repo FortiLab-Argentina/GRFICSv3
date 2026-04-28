@@ -50,6 +50,7 @@ COPY dashboard.html /opt/fwui/templates/dashboard.html
 COPY states.html /opt/fwui/templates/states.html
 COPY dns.html /opt/fwui/templates/dns.html
 COPY base.html /opt/fwui/templates/base.html
+COPY static/ /opt/fwui/static/
 COPY router.conf /etc/supervisor/conf.d/router.conf
 COPY suricata.yaml /etc/suricata/suricata.yaml
 COPY dnsmasq.conf /etc/dnsmasq.conf
