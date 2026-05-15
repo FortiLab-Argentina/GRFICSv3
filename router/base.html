@@ -42,7 +42,12 @@
         </li>
       </ul>
       {% if session.get('username') %}
-      <span class="navbar-text me-3 text-light">Logged in as {{ session['username'] }}</span>
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('settings_users') }}">Settings</a>
+        </li>
+      </ul>
+      <span class="navbar-text me-3 text-light">{{ session['username'] }}{% if session.get('role') == 'viewer' %} <span class="badge bg-info text-dark">viewer</span>{% endif %}</span>
       <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
       {% else %}
       <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}">Login</a>

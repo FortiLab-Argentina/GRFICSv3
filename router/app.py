@@ -18,10 +18,10 @@ INTERFACE_LABELS = {
 # For quick local testing you can hardcode, but better: export SECRET_KEY before starting.
 app.secret_key = os.environ.get("FWUI_SECRET_KEY", "dev-secret-key-change-me")
 
-# default user (will be persisted when load_config runs if config exists)
-DEFAULT_USER = {"username": "admin", "password": "password"}  # intentionally weak for labs
+# intentionally weak defaults for lab use
+DEFAULT_USERS = [{"username": "admin", "password_hash": generate_password_hash("password"), "role": "admin"}]
 
-credentials = DEFAULT_USER.copy()  # dict with username/password
+users = [u.copy() for u in DEFAULT_USERS]
 
 LOG_FILE = "/var/log/ulog/netfilter_log.json"
 FIREWALL_RULES_PATH = "/etc/firewall/rules"
@@ -161,13 +161,20 @@ DEFAULT_RULES = [
 ]
 
 def load_config():
-    global pending_rules, dirty, credentials
+    global pending_rules, dirty, users
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
             data = json.load(f)
             pending_rules = data.get("rules", [])
-            if "auth" in data:
-                credentials = data["auth"]
+            if "users" in data:
+                users = data["users"]
+            elif "auth" in data:
+                # migrate legacy plaintext single-user record
+                old = data["auth"]
+                users = [{"username": old["username"],
+                          "password_hash": generate_password_hash(old["password"]),
+                          "role": "admin"}]
+                save_config()
     else:
         pending_rules = DEFAULT_RULES.copy()
         save_config()
@@ -175,7 +182,7 @@ def load_config():
 
 
 def save_config():
-    data = {"rules": pending_rules, "auth": credentials}
+    data = {"rules": pending_rules, "users": users}
     with open(CONFIG_PATH, "w") as f:
         json.dump(data, f, indent=2)
 
@@ -421,7 +428,7 @@ def wg_iface_up():
     return subprocess.run(["ip", "link", "show", "wg0"], capture_output=True).returncode == 0
 
 
-# --- login helper/decorator ---
+# --- login helpers/decorators ---
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(*args, **kwargs):
@@ -430,16 +437,28 @@ def login_required(view):
         return view(*args, **kwargs)
     return wrapped_view
 
+
+def admin_required(view):
+    @functools.wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if session.get("role") != "admin":
+            flash("Administrator access required.", "danger")
+            return redirect(url_for("index"))
+        return view(*args, **kwargs)
+    return wrapped_view
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     next_url = request.args.get("next") or url_for("dashboard")
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        # simple check against stored credentials
-        if username == credentials.get("username") and password == credentials.get("password"):
+        user_rec = next((u for u in users if u["username"] == username), None)
+        if user_rec and check_password_hash(user_rec["password_hash"], password):
             session["logged_in"] = True
             session["username"] = username
+            session["role"] = user_rec["role"]
             flash("Logged in", "success")
             return redirect(next_url)
         else:
@@ -534,6 +553,7 @@ def firewall():
 
 @app.route("/delete", methods=["POST"])
 @login_required
+@admin_required
 def delete_rule():
     global dirty
     idx = int(request.form["rule_num"])
@@ -546,6 +566,7 @@ def delete_rule():
 
 @app.route("/add", methods=["POST"])
 @login_required
+@admin_required
 def add_rule():
     global dirty
     iface_in = request.form.get("iface_in") 
@@ -581,6 +602,7 @@ def add_rule():
 
 @app.route("/move", methods=["POST"])
 @login_required
+@admin_required
 def move_rule():
     global dirty
     idx = int(request.form["rule_num"])
@@ -652,6 +674,7 @@ def _apply_rules_now(rules):
 
 @app.route("/apply", methods=["POST"])
 @login_required
+@admin_required
 def apply_changes():
     load_config()
     proc = _apply_rules_now(pending_rules)
@@ -664,6 +687,7 @@ def apply_changes():
 
 @app.route("/revert", methods=["POST"])
 @login_required
+@admin_required
 def revert_changes():
     global dirty
     rules = parse_iptables_rules()
@@ -743,6 +767,7 @@ def dns():
 
 @app.route("/dns/add_host", methods=["POST"])
 @login_required
+@admin_required
 def dns_add_host():
     hostname = request.form.get("hostname", "").strip().lower()
     ip = request.form.get("ip", "").strip()
@@ -760,6 +785,7 @@ def dns_add_host():
 
 @app.route("/dns/delete_host", methods=["POST"])
 @login_required
+@admin_required
 def dns_delete_host():
     idx = int(request.form["idx"])
     config = load_dns_config()
@@ -773,6 +799,7 @@ def dns_delete_host():
 
 @app.route("/dns/add_block", methods=["POST"])
 @login_required
+@admin_required
 def dns_add_block():
     # Strip leading wildcards/dots so "*.evil.com" and "evil.com" both become "evil.com"
     domain = request.form.get("domain", "").strip().lower().lstrip("*.").strip(".")
@@ -790,6 +817,7 @@ def dns_add_block():
 
 @app.route("/dns/delete_block", methods=["POST"])
 @login_required
+@admin_required
 def dns_delete_block():
     idx = int(request.form["idx"])
     config = load_dns_config()
@@ -826,6 +854,7 @@ def vpn():
 
 @app.route("/vpn/setup", methods=["POST"])
 @login_required
+@admin_required
 def vpn_setup():
     config = load_wg_config()
     if config.get("server", {}).get("private_key"):
@@ -850,6 +879,7 @@ def vpn_setup():
 
 @app.route("/vpn/toggle", methods=["POST"])
 @login_required
+@admin_required
 def vpn_toggle():
     if wg_iface_up():
         subprocess.run(["wg-quick", "down", "wg0"], check=False)
@@ -866,6 +896,7 @@ def vpn_toggle():
 
 @app.route("/vpn/add_peer", methods=["POST"])
 @login_required
+@admin_required
 def vpn_add_peer():
     config = load_wg_config()
     if not config.get("server", {}).get("private_key"):
@@ -895,6 +926,7 @@ def vpn_add_peer():
 
 @app.route("/vpn/delete_peer", methods=["POST"])
 @login_required
+@admin_required
 def vpn_delete_peer():
     idx = int(request.form["idx"])
     config = load_wg_config()
@@ -950,6 +982,73 @@ def vpn_client_config(idx):
 @login_required
 def api_vpn_status():
     return jsonify({"up": wg_iface_up(), "peers": parse_wg_show()})
+
+
+# --- settings / user management routes ---
+
+@app.route("/settings/users")
+@login_required
+def settings_users():
+    return render_template("settings.html", active_page="settings",
+                           users=users, current_user=session["username"],
+                           current_role=session.get("role"))
+
+
+@app.route("/settings/change_password", methods=["POST"])
+@login_required
+def change_password():
+    current = request.form.get("current_password", "")
+    new = request.form.get("new_password", "").strip()
+    confirm = request.form.get("confirm_password", "").strip()
+    rec = next((u for u in users if u["username"] == session["username"]), None)
+    if not rec or not check_password_hash(rec["password_hash"], current):
+        flash("Current password is incorrect.", "danger")
+    elif new != confirm:
+        flash("New passwords do not match.", "danger")
+    elif len(new) < 6:
+        flash("Password must be at least 6 characters.", "danger")
+    else:
+        rec["password_hash"] = generate_password_hash(new)
+        save_config()
+        flash("Password updated.", "success")
+    return redirect(url_for("settings_users"))
+
+
+@app.route("/settings/add_user", methods=["POST"])
+@login_required
+@admin_required
+def add_user():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    role = request.form.get("role", "viewer")
+    if not username or not password:
+        flash("Username and password are required.", "danger")
+    elif any(u["username"] == username for u in users):
+        flash(f"User '{username}' already exists.", "danger")
+    elif role not in ("admin", "viewer"):
+        flash("Invalid role.", "danger")
+    else:
+        users.append({"username": username,
+                      "password_hash": generate_password_hash(password),
+                      "role": role})
+        save_config()
+        flash(f"User '{username}' added.", "success")
+    return redirect(url_for("settings_users"))
+
+
+@app.route("/settings/delete_user", methods=["POST"])
+@login_required
+@admin_required
+def delete_user():
+    global users
+    username = request.form.get("username", "")
+    if username == session["username"]:
+        flash("Cannot delete your own account.", "danger")
+    else:
+        users = [u for u in users if u["username"] != username]
+        save_config()
+        flash(f"User '{username}' deleted.", "success")
+    return redirect(url_for("settings_users"))
 
 
 load_config()
