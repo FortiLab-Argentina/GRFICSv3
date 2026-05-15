@@ -30,6 +30,10 @@ IDS_RULES_FILE = "/etc/suricata/rules/local.rules"
 ICS_SUBNET = "192.168.95.0/24"   # trusted LAN — default allow outbound
 
 DNS_CONFIG_PATH = "/etc/firewall/dns_config.json"
+WG_CONFIG_PATH = "/etc/firewall/wg_config.json"
+WG_CONF_PATH = "/etc/wireguard/wg0.conf"
+WG_VPN_SUBNET = "10.100.0.0/24"
+WG_SERVER_ADDR = "10.100.0.1/24"
 DNS_HOSTS_PATH = "/etc/firewall/dns_hosts"
 DNS_BLOCKED_PATH = "/etc/firewall/dns_blocked.conf"
 DNSMASQ_LOG = "/var/log/dnsmasq/dnsmasq.log"
@@ -272,6 +276,100 @@ def get_dns_queries(limit=100):
     return queries[-limit:]
 
 
+# --- wireguard helpers ---
+
+def load_wg_config():
+    try:
+        with open(WG_CONFIG_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"server": {}, "peers": []}
+
+
+def save_wg_config(config):
+    os.makedirs(os.path.dirname(WG_CONFIG_PATH), exist_ok=True)
+    with open(WG_CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+def wg_genkey():
+    priv = subprocess.check_output(["wg", "genkey"], text=True).strip()
+    pub = subprocess.check_output(["wg", "pubkey"], input=priv, text=True).strip()
+    return priv, pub
+
+
+def write_wg_conf(config):
+    server = config.get("server", {})
+    lines = [
+        "[Interface]",
+        f"PrivateKey = {server['private_key']}",
+        f"ListenPort = {server.get('listen_port', 51820)}",
+        f"Address = {server.get('address', WG_SERVER_ADDR)}",
+        "",
+    ]
+    for peer in config.get("peers", []):
+        lines += [
+            f"# {peer.get('name', 'peer')}",
+            "[Peer]",
+            f"PublicKey = {peer['public_key']}",
+            f"AllowedIPs = {peer['allowed_ips']}",
+            "",
+        ]
+    os.makedirs("/etc/wireguard", exist_ok=True)
+    with open(WG_CONF_PATH, "w") as f:
+        f.write("\n".join(lines))
+
+
+def _ensure_wg_masquerade():
+    r = subprocess.run(
+        ["iptables", "-t", "nat", "-C", "POSTROUTING", "-s", WG_VPN_SUBNET, "-j", "MASQUERADE"],
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        subprocess.run(
+            ["iptables", "-t", "nat", "-A", "POSTROUTING", "-s", WG_VPN_SUBNET, "-j", "MASQUERADE"],
+            check=False,
+        )
+
+
+def apply_wg(config):
+    write_wg_conf(config)
+    subprocess.run(["wg-quick", "down", "wg0"], capture_output=True)
+    result = subprocess.run(["wg-quick", "up", "wg0"], capture_output=True, text=True)
+    if result.returncode == 0:
+        _ensure_wg_masquerade()
+    return result
+
+
+def parse_wg_show():
+    """Parse `wg show wg0 dump` into a dict keyed by peer public key."""
+    try:
+        out = subprocess.check_output(
+            ["wg", "show", "wg0", "dump"], text=True, stderr=subprocess.DEVNULL
+        )
+    except subprocess.CalledProcessError:
+        return {}
+    status = {}
+    for line in out.strip().splitlines()[1:]:  # skip interface line
+        parts = line.split("\t")
+        if len(parts) < 8:
+            continue
+        pubkey = parts[0]
+        last_hs = int(parts[4]) if parts[4] != "0" else 0
+        status[pubkey] = {
+            "endpoint": parts[2] if parts[2] != "(none)" else None,
+            "allowed_ips": parts[3],
+            "last_handshake": last_hs,
+            "rx_bytes": int(parts[5]),
+            "tx_bytes": int(parts[6]),
+        }
+    return status
+
+
+def wg_iface_up():
+    return subprocess.run(["ip", "link", "show", "wg0"], capture_output=True).returncode == 0
+
+
 # --- login helper/decorator ---
 def login_required(view):
     @functools.wraps(view)
@@ -478,6 +576,9 @@ def build_iptables_rules(rules):
         else:
             line += f" -j {r['action']}"
         lines.append(line)
+    # Allow forwarding to/from WireGuard VPN interface when it's up
+    lines.append("-A FORWARD -i wg0 -j ACCEPT")
+    lines.append("-A FORWARD -o wg0 -j ACCEPT")
     # Default allow for ICS-originated traffic (trusted → untrusted).
     # Match on source subnet rather than interface name — interface assignment
     # is not deterministic in Docker containers.
@@ -652,8 +753,158 @@ def api_dns_queries():
     return jsonify({"queries": queries, "count": len(queries)})
 
 
+# --- wireguard routes ---
+
+@app.route("/vpn")
+@login_required
+def vpn():
+    config = load_wg_config()
+    peer_status = parse_wg_show()
+    return render_template(
+        "wireguard.html",
+        active_page="vpn",
+        config=config,
+        peer_status=peer_status,
+        iface_up=wg_iface_up(),
+    )
+
+
+@app.route("/vpn/setup", methods=["POST"])
+@login_required
+def vpn_setup():
+    config = load_wg_config()
+    if config.get("server", {}).get("private_key"):
+        flash("WireGuard is already initialized.", "info")
+        return redirect(url_for("vpn"))
+    priv, pub = wg_genkey()
+    config["server"] = {
+        "private_key": priv,
+        "public_key": pub,
+        "listen_port": 51820,
+        "address": WG_SERVER_ADDR,
+    }
+    config.setdefault("peers", [])
+    save_wg_config(config)
+    result = apply_wg(config)
+    if result.returncode == 0:
+        flash("WireGuard initialized and started.", "success")
+    else:
+        flash(f"Initialized but failed to start: {result.stderr}", "danger")
+    return redirect(url_for("vpn"))
+
+
+@app.route("/vpn/toggle", methods=["POST"])
+@login_required
+def vpn_toggle():
+    if wg_iface_up():
+        subprocess.run(["wg-quick", "down", "wg0"], check=False)
+        flash("WireGuard stopped.", "info")
+    else:
+        config = load_wg_config()
+        result = apply_wg(config)
+        if result.returncode == 0:
+            flash("WireGuard started.", "success")
+        else:
+            flash(f"Failed to start: {result.stderr}", "danger")
+    return redirect(url_for("vpn"))
+
+
+@app.route("/vpn/add_peer", methods=["POST"])
+@login_required
+def vpn_add_peer():
+    config = load_wg_config()
+    if not config.get("server", {}).get("private_key"):
+        flash("Initialize WireGuard server first.", "danger")
+        return redirect(url_for("vpn"))
+    name = request.form.get("name", "").strip()
+    public_key = request.form.get("public_key", "").strip()
+    allowed_ips = request.form.get("allowed_ips", "").strip()
+    comment = request.form.get("comment", "").strip()
+    if not name or not public_key or not allowed_ips:
+        flash("Name, public key, and allowed IPs are required.", "danger")
+        return redirect(url_for("vpn"))
+    config["peers"].append({
+        "name": name,
+        "public_key": public_key,
+        "allowed_ips": allowed_ips,
+        "comment": comment,
+    })
+    save_wg_config(config)
+    result = apply_wg(config)
+    if result.returncode == 0:
+        flash(f"Peer '{name}' added.", "success")
+    else:
+        flash(f"Peer saved but apply failed: {result.stderr}", "warning")
+    return redirect(url_for("vpn"))
+
+
+@app.route("/vpn/delete_peer", methods=["POST"])
+@login_required
+def vpn_delete_peer():
+    idx = int(request.form["idx"])
+    config = load_wg_config()
+    peers = config.get("peers", [])
+    if 0 <= idx < len(peers):
+        removed = peers.pop(idx)
+        save_wg_config(config)
+        apply_wg(config)
+        flash(f"Peer '{removed['name']}' removed.", "success")
+    return redirect(url_for("vpn"))
+
+
+@app.route("/vpn/client_config/<int:idx>")
+@login_required
+def vpn_client_config(idx):
+    import re
+    config = load_wg_config()
+    server = config.get("server", {})
+    peers = config.get("peers", [])
+    if idx >= len(peers):
+        flash("Peer not found.", "danger")
+        return redirect(url_for("vpn"))
+    peer = peers[idx]
+    try:
+        wan_info = subprocess.check_output(["ip", "-4", "addr", "show", "eth2"], text=True)
+        match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", wan_info)
+        endpoint = match.group(1) if match else "192.168.90.200"
+    except Exception:
+        endpoint = "192.168.90.200"
+    client_conf = (
+        f"# Client config for: {peer['name']}\n"
+        f"# Run 'wg genkey | tee privkey | wg pubkey > pubkey' to generate your keys,\n"
+        f"# then replace <your-private-key> below.\n\n"
+        f"[Interface]\n"
+        f"PrivateKey = <your-private-key>\n"
+        f"Address = {peer['allowed_ips'].split(',')[0].strip()}\n"
+        f"DNS = 192.168.95.200\n\n"
+        f"[Peer]\n"
+        f"PublicKey = {server['public_key']}\n"
+        f"Endpoint = {endpoint}:{server.get('listen_port', 51820)}\n"
+        f"AllowedIPs = 192.168.95.0/24, 192.168.90.0/24\n"
+        f"PersistentKeepalive = 25\n"
+    )
+    from flask import Response
+    return Response(
+        client_conf,
+        mimetype="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=wg0-{peer['name']}.conf"},
+    )
+
+
+@app.route("/api/vpn/status")
+@login_required
+def api_vpn_status():
+    return jsonify({"up": wg_iface_up(), "peers": parse_wg_show()})
+
 
 load_config()
 _apply_rules_now(pending_rules)
+
+_wg_startup = load_wg_config()
+if _wg_startup.get("server", {}).get("private_key"):
+    write_wg_conf(_wg_startup)
+    subprocess.run(["wg-quick", "down", "wg0"], capture_output=True)
+    subprocess.run(["wg-quick", "up", "wg0"], capture_output=True)
+    _ensure_wg_masquerade()
 
 app.run(host="0.0.0.0", port=5000)

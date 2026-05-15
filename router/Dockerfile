@@ -4,7 +4,7 @@ FROM debian:12-slim
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     iproute2 iputils-ping iptables nano procps tcpdump curl \
-    python3 python3-flask ulogd2 ulogd2-json dnsmasq && \
+    python3 python3-flask ulogd2 ulogd2-json dnsmasq wireguard-tools && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/log/flask /var/log/dnsmasq
@@ -49,6 +49,7 @@ COPY ids.html /opt/fwui/templates/ids.html
 COPY dashboard.html /opt/fwui/templates/dashboard.html
 COPY states.html /opt/fwui/templates/states.html
 COPY dns.html /opt/fwui/templates/dns.html
+COPY wireguard.html /opt/fwui/templates/wireguard.html
 COPY base.html /opt/fwui/templates/base.html
 COPY static/ /opt/fwui/static/
 COPY router.conf /etc/supervisor/conf.d/router.conf

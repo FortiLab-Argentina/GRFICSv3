@@ -35,6 +35,9 @@
           <a class="nav-link {% if active_page == 'ids' %}active{% endif %}" href="{{ url_for('ids') }}">IDS</a>
         </li>
         <li class="nav-item">
+          <a class="nav-link {% if active_page == 'vpn' %}active{% endif %}" href="{{ url_for('vpn') }}">VPN</a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {% if active_page == 'firewall_logs' %}active{% endif %}" href="{{ url_for('firewall_logs') }}">Firewall Logs</a>
         </li>
       </ul>
