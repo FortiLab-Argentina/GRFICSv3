@@ -156,8 +156,8 @@
 </table>
 {% endif %}
 
-{% for iface in ['eth1','eth2'] %}
-  <h4 class="mt-4">{{ labels.get(iface, iface) }} ({{ iface }})</h4>
+{% for iface, label in labels.items() if label != 'Admin' %}
+  <h4 class="mt-4">{{ label }} ({{ iface }})</h4>
   <table class="table table-bordered table-sm align-middle">
     <thead class="table-light">
       <tr><th>#</th><th>Src Address</th><th>Dst Address</th><th>Proto</th><th>Port</th><th>Action</th><th>Comment</th><th></th></tr>

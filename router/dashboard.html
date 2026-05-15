@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{% set ns = namespace(lan_iface='eth1', dmz_iface='eth2') %}
+{% for k, v in labels.items() %}{% if v == 'LAN' %}{% set ns.lan_iface = k %}{% endif %}{% if v == 'DMZ' %}{% set ns.dmz_iface = k %}{% endif %}{% endfor %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2 class="mb-0">Dashboard</h2>
   <span class="text-muted small">Updated <span id="last-updated">—</span></span>
@@ -18,7 +20,7 @@
   <div class="col-md-4">
     <div class="card h-100">
       <div class="card-body text-center">
-        <p class="text-muted mb-1 small">LAN (eth1)</p>
+        <p class="text-muted mb-1 small">LAN ({{ ns.lan_iface }})</p>
         <div class="d-flex justify-content-around">
           <div><span class="text-success small">↓ RX</span><br><strong id="lan-rx">—</strong></div>
           <div><span class="text-danger small">↑ TX</span><br><strong id="lan-tx">—</strong></div>
@@ -29,7 +31,7 @@
   <div class="col-md-4">
     <div class="card h-100">
       <div class="card-body text-center">
-        <p class="text-muted mb-1 small">WAN (eth2)</p>
+        <p class="text-muted mb-1 small">DMZ ({{ ns.dmz_iface }})</p>
         <div class="d-flex justify-content-around">
           <div><span class="text-success small">↓ RX</span><br><strong id="wan-rx">—</strong></div>
           <div><span class="text-danger small">↑ TX</span><br><strong id="wan-tx">—</strong></div>
@@ -104,8 +106,8 @@ function refreshStats() {
       const ifaces = data.interfaces || {};
 
       // Summary cards
-      const lan = ifaces['eth1'] || {};
-      const wan = ifaces['eth2'] || {};
+      const lan = ifaces[{{ ns.lan_iface | tojson }}] || {};
+      const wan = ifaces[{{ ns.dmz_iface | tojson }}] || {};
       document.getElementById('lan-rx').textContent = fmtBytes(lan.rx_bps || 0);
       document.getElementById('lan-tx').textContent = fmtBytes(lan.tx_bps || 0);
       document.getElementById('wan-rx').textContent = fmtBytes(wan.rx_bps || 0);
