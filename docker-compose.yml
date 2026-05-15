@@ -193,7 +193,7 @@ networks:
     ipam:
       config:
         - subnet: 192.168.95.0/24
-          gateway: 192.168.95.200
+          gateway: 192.168.95.1
 
   c-dmz-net:
     driver: macvlan
@@ -202,7 +202,7 @@ networks:
     ipam:
       config:
         - subnet: 192.168.90.0/24
-          gateway: 192.168.90.200
+          gateway: 192.168.90.1
 
 
   a-grfics-admin:
