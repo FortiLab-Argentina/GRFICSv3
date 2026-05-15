@@ -6,7 +6,7 @@ set -e
 iptables -P FORWARD DROP
 
 # Ensure dnsmasq config files exist before supervisord starts dnsmasq
-mkdir -p /etc/firewall /var/log/dnsmasq
+mkdir -p /etc/firewall /var/log/dnsmasq /var/log/arpmon /var/lib/arpmon
 touch /etc/firewall/dns_hosts
 [ -f /etc/firewall/dns_blocked.conf ] || touch /etc/firewall/dns_blocked.conf
 

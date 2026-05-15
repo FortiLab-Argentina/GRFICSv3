@@ -30,6 +30,9 @@ IDS_ALERTS_FILE = "/etc/suricata/alerts.json"
 IDS_RULES_FILE = "/etc/suricata/rules/local.rules"
 ICS_SUBNET = "192.168.95.0/24"   # trusted LAN — default allow outbound
 
+ARPMON_STATE = "/var/lib/arpmon/state.json"
+ARPMON_LOG   = "/var/log/arpmon/events.json"
+
 DNS_CONFIG_PATH = "/etc/firewall/dns_config.json"
 WG_CONFIG_PATH = "/etc/firewall/wg_config.json"
 WG_CONF_PATH = "/etc/wireguard/wg0.conf"
@@ -982,6 +985,36 @@ def vpn_client_config(idx):
 @login_required
 def api_vpn_status():
     return jsonify({"up": wg_iface_up(), "peers": parse_wg_show()})
+
+
+# --- arp monitoring routes ---
+
+@app.route("/arp")
+@login_required
+def arp():
+    try:
+        with open(ARPMON_STATE) as f:
+            devices = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        devices = {}
+
+    events = []
+    try:
+        with open(ARPMON_LOG) as f:
+            for line in f:
+                try:
+                    events.append(json.loads(line.strip()))
+                except json.JSONDecodeError:
+                    continue
+    except FileNotFoundError:
+        pass
+
+    return render_template(
+        "arp.html",
+        active_page="arp",
+        devices=devices,
+        events=events[-100:],
+    )
 
 
 # --- settings / user management routes ---
