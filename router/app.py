@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import subprocess
-import json, os, functools, time
+import json, os, functools, time, glob, re
+from werkzeug.security import generate_password_hash, check_password_hash
 from collections import Counter
 from pathlib import Path
 from datetime import datetime
@@ -81,6 +82,56 @@ def get_recent_alerts(limit=50):
             except json.JSONDecodeError:
                 continue
     return alerts[-limit:]
+
+
+RULES_DIR = "/etc/suricata/rules"
+
+
+def parse_rule_lines(text):
+    # Rejoin lines ending with \ before parsing (multi-line rule format)
+    logical_lines = []
+    buf = ""
+    for raw in text.splitlines():
+        stripped = raw.rstrip()
+        if stripped.endswith("\\"):
+            buf += stripped[:-1]
+        else:
+            buf += stripped
+            logical_lines.append(buf)
+            buf = ""
+    if buf:
+        logical_lines.append(buf)
+
+    rules = []
+    for line in logical_lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        msg_m = re.search(r'msg:"([^"]+)"', line)
+        sid_m = re.search(r'\bsid:(\d+)', line)
+        rules.append({
+            "sid": sid_m.group(1) if sid_m else "—",
+            "msg": msg_m.group(1) if msg_m else line[:80],
+        })
+    return rules
+
+
+def load_builtin_rules():
+    rules = []
+    for path in sorted(glob.glob(f"{RULES_DIR}/*.rules")):
+        if os.path.basename(path) == "local.rules":
+            continue
+        try:
+            with open(path) as f:
+                text = f.read()
+        except OSError:
+            continue
+        label = os.path.basename(path).replace(".rules", "")
+        for r in parse_rule_lines(text):
+            r["file"] = label
+            rules.append(r)
+    return rules
+
 
 def load_json(path, default=[]):
     try:
@@ -634,10 +685,12 @@ def ids():
         rule_text = ""
 
     alerts = get_recent_alerts()
+    builtin_rules = load_builtin_rules()
     stats = {
         "status": "Running",
         "alerts_today": len(alerts),
         "rules_count": len(rule_text.strip().splitlines()) if rule_text.strip() else 0,
+        "builtin_count": len(builtin_rules),
     }
 
     return render_template(
@@ -645,12 +698,14 @@ def ids():
         active_page="ids",
         alerts=alerts,
         rule_text=rule_text,
+        builtin_rules=builtin_rules,
         stats=stats,
     )
 
 
 @app.route("/ids/save_rules", methods=["POST"])
 @login_required
+@admin_required
 def save_rules():
     new_rules = request.form.get("rules_text", "")
     os.makedirs(os.path.dirname(IDS_RULES_FILE), exist_ok=True)
