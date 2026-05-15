@@ -8,11 +8,38 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-INTERFACE_LABELS = {
-    "eth0": "Admin",
-    "eth1": "LAN",
-    "eth2": "WAN"
-}
+def _detect_interface_labels():
+    _FALLBACK = {"eth0": "Admin", "eth1": "LAN", "eth2": "WAN"}
+    try:
+        out = subprocess.check_output(["ip", "-4", "addr"], text=True)
+    except Exception:
+        return _FALLBACK
+
+    iface_ips = {}
+    current = None
+    for line in out.splitlines():
+        m = re.match(r'^\d+:\s+(\S+):', line)
+        if m:
+            current = m.group(1).rstrip('@')
+        ip_m = re.search(r'inet (\d+\.\d+\.\d+\.\d+)/', line)
+        if ip_m and current and current != 'lo':
+            iface_ips.setdefault(current, []).append(ip_m.group(1))
+
+    labels = {}
+    for iface, ips in iface_ips.items():
+        if iface in ('lo', 'wg0'):
+            continue
+        for ip in ips:
+            if ip.startswith('192.168.95.'):
+                labels[iface] = 'LAN'
+            elif ip.startswith('192.168.90.'):
+                labels[iface] = 'WAN'
+            else:
+                labels.setdefault(iface, 'Admin')
+
+    return labels if labels else _FALLBACK
+
+INTERFACE_LABELS = _detect_interface_labels()
 
 # SECRET_KEY is required for sessions. Set via env var in compose or host.
 # For quick local testing you can hardcode, but better: export SECRET_KEY before starting.
@@ -954,7 +981,8 @@ def vpn_client_config(idx):
         return redirect(url_for("vpn"))
     peer = peers[idx]
     try:
-        wan_info = subprocess.check_output(["ip", "-4", "addr", "show", "eth2"], text=True)
+        wan_iface = next((k for k, v in INTERFACE_LABELS.items() if v == 'WAN'), 'eth2')
+        wan_info = subprocess.check_output(["ip", "-4", "addr", "show", wan_iface], text=True)
         match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", wan_info)
         endpoint = match.group(1) if match else "192.168.90.200"
     except Exception:
@@ -1003,7 +1031,8 @@ def diagnostics():
 
     if request.method == "POST":
         tool = request.form.get("tool")
-        iface = request.form.get("iface", "eth1")
+        lan_iface = next((k for k, v in INTERFACE_LABELS.items() if v == 'LAN'), 'eth1')
+        iface = request.form.get("iface", lan_iface)
         target = request.form.get("target", "").strip()
         bpf = request.form.get("bpf", "").strip()
 
