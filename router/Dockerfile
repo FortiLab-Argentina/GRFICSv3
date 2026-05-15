@@ -4,10 +4,10 @@ FROM debian:12-slim
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     iproute2 iputils-ping iptables nano procps tcpdump curl \
-    python3 python3-flask ulogd2 ulogd2-json && \
+    python3 python3-flask ulogd2 ulogd2-json dnsmasq wireguard-tools && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \ 
-    mkdir -p /var/log/flask
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /var/log/flask /var/log/dnsmasq
 
 
 RUN apt-get update && apt-get install -y supervisor suricata && \
@@ -44,14 +44,23 @@ COPY app.py /opt/fwui/app.py
 COPY index.html /opt/fwui/templates/index.html
 COPY login.html /opt/fwui/templates/login.html
 COPY firewall.html /opt/fwui/templates/firewall.html
+COPY firewall_logs.html /opt/fwui/templates/firewall_logs.html
 COPY ids.html /opt/fwui/templates/ids.html
+COPY dashboard.html /opt/fwui/templates/dashboard.html
+COPY states.html /opt/fwui/templates/states.html
+COPY dns.html /opt/fwui/templates/dns.html
+COPY wireguard.html /opt/fwui/templates/wireguard.html
+COPY settings.html /opt/fwui/templates/settings.html
+COPY arp.html /opt/fwui/templates/arp.html
+COPY diagnostics.html /opt/fwui/templates/diagnostics.html
 COPY base.html /opt/fwui/templates/base.html
+COPY arpmon.py /opt/fwui/arpmon.py
+COPY static/ /opt/fwui/static/
 COPY router.conf /etc/supervisor/conf.d/router.conf
 COPY suricata.yaml /etc/suricata/suricata.yaml
+COPY dnsmasq.conf /etc/dnsmasq.conf
 
-# Add DigitalBond Quickdraw ICS/SCADA detection rules
-RUN curl -fsSL https://raw.githubusercontent.com/digitalbond/Quickdraw-Snort/refs/heads/master/all-quickdraw.rules \
-    -o /etc/suricata/rules/quickdraw.rules
+COPY quickdraw.rules /etc/suricata/rules/quickdraw.rules
 COPY ulogd.conf /etc/ulogd.conf
 
 
