@@ -9,7 +9,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 def _detect_interface_labels():
-    _FALLBACK = {"eth0": "Admin", "eth1": "LAN", "eth2": "WAN"}
+    _FALLBACK = {"eth0": "Admin", "eth1": "LAN", "eth2": "DMZ"}
     try:
         out = subprocess.check_output(["ip", "-4", "addr"], text=True)
     except Exception:
@@ -20,7 +20,7 @@ def _detect_interface_labels():
     for line in out.splitlines():
         m = re.match(r'^\d+:\s+(\S+):', line)
         if m:
-            current = m.group(1).rstrip('@')
+            current = m.group(1).split('@')[0]
         ip_m = re.search(r'inet (\d+\.\d+\.\d+\.\d+)/', line)
         if ip_m and current and current != 'lo':
             iface_ips.setdefault(current, []).append(ip_m.group(1))
@@ -33,7 +33,7 @@ def _detect_interface_labels():
             if ip.startswith('192.168.95.'):
                 labels[iface] = 'LAN'
             elif ip.startswith('192.168.90.'):
-                labels[iface] = 'WAN'
+                labels[iface] = 'DMZ'
             else:
                 labels.setdefault(iface, 'Admin')
 
@@ -981,7 +981,7 @@ def vpn_client_config(idx):
         return redirect(url_for("vpn"))
     peer = peers[idx]
     try:
-        wan_iface = next((k for k, v in INTERFACE_LABELS.items() if v == 'WAN'), 'eth2')
+        wan_iface = next((k for k, v in INTERFACE_LABELS.items() if v == 'DMZ'), 'eth2')
         wan_info = subprocess.check_output(["ip", "-4", "addr", "show", wan_iface], text=True)
         match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", wan_info)
         endpoint = match.group(1) if match else "192.168.90.200"
