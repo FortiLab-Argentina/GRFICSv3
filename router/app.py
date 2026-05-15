@@ -990,6 +990,7 @@ def api_vpn_status():
 # --- diagnostics routes ---
 
 _DIAG_TARGET_RE = re.compile(r'^[a-zA-Z0-9.\-_]{1,253}$')
+PCAP_PATH = "/tmp/diag_capture.pcap"
 
 
 @app.route("/diagnostics", methods=["GET", "POST"])
@@ -998,6 +999,7 @@ def diagnostics():
     output = None
     tool = None
     error = None
+    pcap_available = False
 
     if request.method == "POST":
         tool = request.form.get("tool")
@@ -1015,22 +1017,46 @@ def diagnostics():
             error = "Invalid interface."
         elif tool in ("ping", "traceroute") and not _DIAG_TARGET_RE.match(target):
             error = "Invalid target — use a hostname or IP address."
-        elif tool == "ping":
-            cmd = ["ping", "-c", str(count), "-W", "2", "-I", iface, target]
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            output = r.stdout + r.stderr
-        elif tool == "traceroute":
-            cmd = ["traceroute", "-i", iface, "-w", "2", target]
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            output = r.stdout + r.stderr
-        elif tool == "tcpdump":
-            cmd = ["tcpdump", "-i", iface, "-c", str(count), "-n", "--no-promiscuous-mode"]
-            if bpf:
-                cmd.append(bpf)
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            output = r.stdout + r.stderr
         else:
-            error = "Unknown tool."
+            cmd = None
+            timeout = 30
+            if tool == "ping":
+                cmd = ["ping", "-c", str(count), "-W", "2", "-I", iface, target]
+            elif tool == "traceroute":
+                cmd = ["traceroute", "-i", iface, "-w", "2", target]
+                timeout = 60
+            elif tool == "tcpdump":
+                # remove stale file — tcpdump drops to 'tcpdump' user before
+                # opening the output file, so it can't overwrite a root-owned file
+                try:
+                    os.remove(PCAP_PATH)
+                except FileNotFoundError:
+                    pass
+                cap_cmd = ["tcpdump", "-i", iface, "-c", str(count), "-n",
+                           "--no-promiscuous-mode", "-w", PCAP_PATH]
+                if bpf:
+                    cap_cmd.append(bpf)
+                try:
+                    subprocess.run(cap_cmd, capture_output=True, timeout=30)
+                except subprocess.TimeoutExpired:
+                    pass  # partial pcap is still valid
+                if os.path.exists(PCAP_PATH) and os.path.getsize(PCAP_PATH) > 24:
+                    r2 = subprocess.run(["tcpdump", "-r", PCAP_PATH, "-n"],
+                                        capture_output=True, text=True, timeout=10)
+                    output = r2.stdout + r2.stderr
+                    pcap_available = True
+                else:
+                    output = "(no packets captured — interface may be idle)"
+            else:
+                error = "Unknown tool."
+
+            if cmd:
+                try:
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+                    output = r.stdout + r.stderr
+                except subprocess.TimeoutExpired as e:
+                    decode = lambda b: b.decode(errors="replace") if isinstance(b, bytes) else (b or "")
+                    output = decode(e.stdout) + decode(e.stderr) + "\n[timed out]"
 
         if error:
             flash(error, "danger")
@@ -1041,6 +1067,22 @@ def diagnostics():
         interfaces=INTERFACE_LABELS,
         tool=tool,
         output=output,
+        pcap_available=pcap_available,
+    )
+
+
+@app.route("/diagnostics/download_pcap")
+@login_required
+def download_pcap():
+    from flask import send_file
+    if not os.path.exists(PCAP_PATH) or os.path.getsize(PCAP_PATH) <= 24:
+        flash("No capture file available.", "danger")
+        return redirect(url_for("diagnostics"))
+    return send_file(
+        PCAP_PATH,
+        as_attachment=True,
+        download_name="capture.pcap",
+        mimetype="application/vnd.tcpdump.pcap",
     )
 
 
