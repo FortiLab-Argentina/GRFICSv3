@@ -987,6 +987,63 @@ def api_vpn_status():
     return jsonify({"up": wg_iface_up(), "peers": parse_wg_show()})
 
 
+# --- diagnostics routes ---
+
+_DIAG_TARGET_RE = re.compile(r'^[a-zA-Z0-9.\-_]{1,253}$')
+
+
+@app.route("/diagnostics", methods=["GET", "POST"])
+@login_required
+def diagnostics():
+    output = None
+    tool = None
+    error = None
+
+    if request.method == "POST":
+        tool = request.form.get("tool")
+        iface = request.form.get("iface", "eth1")
+        target = request.form.get("target", "").strip()
+        bpf = request.form.get("bpf", "").strip()
+
+        try:
+            count_raw = int(request.form.get("count", "4"))
+            count = max(1, min(count_raw, 50))
+        except ValueError:
+            count = 4
+
+        if iface not in INTERFACE_LABELS:
+            error = "Invalid interface."
+        elif tool in ("ping", "traceroute") and not _DIAG_TARGET_RE.match(target):
+            error = "Invalid target — use a hostname or IP address."
+        elif tool == "ping":
+            cmd = ["ping", "-c", str(count), "-W", "2", "-I", iface, target]
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            output = r.stdout + r.stderr
+        elif tool == "traceroute":
+            cmd = ["traceroute", "-i", iface, "-w", "2", target]
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            output = r.stdout + r.stderr
+        elif tool == "tcpdump":
+            cmd = ["tcpdump", "-i", iface, "-c", str(count), "-n", "--no-promiscuous-mode"]
+            if bpf:
+                cmd.append(bpf)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            output = r.stdout + r.stderr
+        else:
+            error = "Unknown tool."
+
+        if error:
+            flash(error, "danger")
+
+    return render_template(
+        "diagnostics.html",
+        active_page="diagnostics",
+        interfaces=INTERFACE_LABELS,
+        tool=tool,
+        output=output,
+    )
+
+
 # --- arp monitoring routes ---
 
 @app.route("/arp")

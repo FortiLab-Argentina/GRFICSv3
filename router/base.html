@@ -43,6 +43,9 @@
         <li class="nav-item">
           <a class="nav-link {% if active_page == 'arp' %}active{% endif %}" href="{{ url_for('arp') }}">ARP</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_page == 'diagnostics' %}active{% endif %}" href="{{ url_for('diagnostics') }}">Diagnostics</a>
+        </li>
       </ul>
       {% if session.get('username') %}
       <ul class="navbar-nav">

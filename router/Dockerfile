@@ -52,6 +52,7 @@ COPY dns.html /opt/fwui/templates/dns.html
 COPY wireguard.html /opt/fwui/templates/wireguard.html
 COPY settings.html /opt/fwui/templates/settings.html
 COPY arp.html /opt/fwui/templates/arp.html
+COPY diagnostics.html /opt/fwui/templates/diagnostics.html
 COPY base.html /opt/fwui/templates/base.html
 COPY arpmon.py /opt/fwui/arpmon.py
 COPY static/ /opt/fwui/static/
