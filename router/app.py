@@ -329,7 +329,7 @@ def apply_dns_config(config):
     with open(DNS_HOSTS_PATH, "w") as f:
         f.write("\n".join(host_lines) + ("\n" if host_lines else ""))
 
-    block_lines = [f"address=/{b['domain']}/#" for b in config.get("blocked", [])]
+    block_lines = [f"address=/{b['domain']}/" for b in config.get("blocked", [])]
     with open(DNS_BLOCKED_PATH, "w") as f:
         f.write("\n".join(block_lines) + ("\n" if block_lines else ""))
 
