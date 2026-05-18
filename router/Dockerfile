@@ -10,8 +10,13 @@ RUN apt-get update && \
     mkdir -p /var/log/flask /var/log/dnsmasq
 
 
-RUN apt-get update && apt-get install -y supervisor suricata && \
-    mkdir -p /var/log/supervisor
+RUN echo "deb http://deb.debian.org/debian bookworm-backports main" \
+      > /etc/apt/sources.list.d/backports.list && \
+    apt-get update && \
+    apt-get install -y supervisor && \
+    apt-get install -y -t bookworm-backports suricata && \
+    mkdir -p /var/log/supervisor && \
+    rm -rf /var/lib/apt/lists/*
 
 
 
