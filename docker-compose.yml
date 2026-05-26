@@ -67,7 +67,7 @@ services:
     ports:
       - "6080:6080"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "6080"]
+      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -121,7 +121,7 @@ services:
     ports:
       - "6088:6080"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "6080"]
+      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
       interval: 15s
       timeout: 5s
       retries: 5
