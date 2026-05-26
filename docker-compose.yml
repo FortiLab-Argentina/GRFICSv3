@@ -36,6 +36,12 @@ services:
       - NET_ADMIN
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     dns:
       - 192.168.95.200
     networks:
@@ -60,6 +66,12 @@ services:
       - NET_ADMIN
     ports:
       - "6080:6080"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "6080"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     dns:
       - 192.168.95.200
     networks:
@@ -82,6 +94,12 @@ services:
       - NET_ADMIN
     ports:
       - "6081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     networks:
       a-grfics-admin:
         priority: 10
@@ -102,6 +120,12 @@ services:
       - NET_ADMIN
     ports:
       - "6088:6080"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "6080"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     dns:
       - 192.168.90.200
     networks:
@@ -150,6 +174,12 @@ services:
     restart: unless-stopped
     ports:
       - "8888:8888"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8888/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     dns:
       - 192.168.90.200
     networks:
