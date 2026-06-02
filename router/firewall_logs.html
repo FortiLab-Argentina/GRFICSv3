@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Firewall Logs</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Firewall Logs</h2>
+  <form method="post" action="{{ url_for('clear_firewall_logs') }}"
+        onsubmit="return confirm('Clear all firewall logs? This cannot be undone.')">
+    <button type="submit" class="btn btn-sm btn-outline-danger">Clear Logs</button>
+  </form>
+</div>
 
 <table class="table table-sm table-striped align-middle">
   <thead>
