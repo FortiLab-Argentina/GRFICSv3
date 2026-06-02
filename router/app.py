@@ -51,6 +51,7 @@ DEFAULT_USERS = [{"username": "admin", "password_hash": generate_password_hash("
 users = [u.copy() for u in DEFAULT_USERS]
 
 LOG_FILE = "/var/log/ulog/netfilter_log.json"
+SURICATA_EVE_FILE = "/var/log/suricata/eve.json"
 FIREWALL_RULES_PATH = "/etc/firewall/rules"
 CONFIG_PATH = "/etc/firewall/config.json"
 IDS_ALERTS_FILE = "/etc/suricata/alerts.json"
@@ -93,7 +94,7 @@ def parse_firewall_logs(limit=100):
     return entries
 
 def get_recent_alerts(limit=50):
-    eve_path = Path("/var/log/suricata/eve.json")
+    eve_path = Path(SURICATA_EVE_FILE)
     alerts = []
     if not eve_path.exists():
         return alerts
@@ -1143,6 +1144,75 @@ def arp():
         devices=devices,
         events=events[-100:],
     )
+
+
+# --- log clearing routes ---
+
+def _truncate_log(path):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, 'w').close()
+        return True
+    except OSError:
+        return False
+
+
+@app.route("/firewall/logs/clear", methods=["POST"])
+@login_required
+@admin_required
+def clear_firewall_logs():
+    if _truncate_log(LOG_FILE):
+        flash("Firewall logs cleared.", "success")
+    else:
+        flash("Failed to clear firewall logs.", "danger")
+    return redirect(url_for("firewall_logs"))
+
+
+@app.route("/ids/clear_alerts", methods=["POST"])
+@login_required
+@admin_required
+def clear_ids_alerts():
+    if _truncate_log(SURICATA_EVE_FILE):
+        flash("IDS alerts cleared.", "success")
+    else:
+        flash("Failed to clear IDS alerts.", "danger")
+    return redirect(url_for("ids"))
+
+
+@app.route("/dns/clear_queries", methods=["POST"])
+@login_required
+@admin_required
+def clear_dns_queries():
+    if _truncate_log(DNSMASQ_LOG):
+        flash("DNS query log cleared.", "success")
+    else:
+        flash("Failed to clear DNS query log.", "danger")
+    return redirect(url_for("dns"))
+
+
+@app.route("/arp/clear_events", methods=["POST"])
+@login_required
+@admin_required
+def clear_arp_events():
+    if _truncate_log(ARPMON_LOG):
+        flash("ARP events cleared.", "success")
+    else:
+        flash("Failed to clear ARP events.", "danger")
+    return redirect(url_for("arp"))
+
+
+@app.route("/arp/clear_devices", methods=["POST"])
+@login_required
+@admin_required
+def clear_arp_devices():
+    try:
+        os.makedirs(os.path.dirname(ARPMON_STATE), exist_ok=True)
+        with open(ARPMON_STATE, 'w') as f:
+            json.dump({}, f)
+        flash("Known devices reset.", "success")
+    except OSError:
+        flash("Failed to reset known devices.", "danger")
+    return redirect(url_for("arp"))
 
 
 # --- settings / user management routes ---

@@ -60,7 +60,13 @@
 </div>
 
 <div class="card">
-  <div class="card-header">Recent Alerts</div>
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Recent Alerts
+    <form method="post" action="{{ url_for('clear_ids_alerts') }}"
+          onsubmit="return confirm('Clear all IDS alerts? This cannot be undone.')">
+      <button type="submit" class="btn btn-sm btn-outline-danger">Clear Alerts</button>
+    </form>
+  </div>
   <div class="card-body">
     {% if alerts %}
       <table class="table table-sm table-striped">

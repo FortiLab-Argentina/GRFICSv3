@@ -93,6 +93,10 @@
           <input class="form-check-input" type="checkbox" id="autorefresh" checked>
           <label class="form-check-label small" for="autorefresh">Auto (5s)</label>
         </div>
+        <form method="post" action="{{ url_for('clear_dns_queries') }}"
+              onsubmit="return confirm('Clear all DNS query logs? This cannot be undone.')">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Clear Log</button>
+        </form>
       </div>
     </div>
 
