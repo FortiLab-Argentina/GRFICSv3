@@ -11,12 +11,6 @@ RUN (cd plugins/magma; npm install && npm run build)
 # This is the runtime stage
 # It containes all dependencies required by caldera
 FROM debian:bookworm-slim AS runtime
-ARG BUILD_VERSION=unknown
-ARG BUILD_CREATED=unknown
-LABEL org.opencontainers.image.version="$BUILD_VERSION" \
-      org.opencontainers.image.revision="$BUILD_VERSION" \
-      org.opencontainers.image.created="$BUILD_CREATED" \
-      com.grfics.service="caldera"
 
 # There are two variants - slim and full
 # The slim variant excludes some dependencies of *emu* and *atomic* that can be downloaded on-demand if needed
@@ -133,4 +127,10 @@ EXPOSE 8022
 # Default FTP port for FTP C2 channel
 EXPOSE 2222
 
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="caldera"
 ENTRYPOINT ["python3", "server.py"]

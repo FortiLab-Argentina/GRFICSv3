@@ -1,10 +1,4 @@
 FROM ubuntu:22.04
-ARG BUILD_VERSION=unknown
-ARG BUILD_CREATED=unknown
-LABEL org.opencontainers.image.version="$BUILD_VERSION" \
-      org.opencontainers.image.revision="$BUILD_VERSION" \
-      org.opencontainers.image.created="$BUILD_CREATED" \
-      com.grfics.service="wazuh"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Fake systemctl so dpkg postinstall scripts don't fail trying to start services
@@ -63,4 +57,10 @@ RUN chmod +x /entrypoint.sh
 
 # 1514/1515: agent comms, 514/udp: syslog, 55000: REST API, 5601: dashboard
 EXPOSE 1514 1515 514/udp 55000 5601
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="wazuh"
 ENTRYPOINT ["/entrypoint.sh"]

@@ -1,10 +1,4 @@
 FROM debian:12-slim
-ARG BUILD_VERSION=unknown
-ARG BUILD_CREATED=unknown
-LABEL org.opencontainers.image.version="$BUILD_VERSION" \
-      org.opencontainers.image.revision="$BUILD_VERSION" \
-      org.opencontainers.image.created="$BUILD_CREATED" \
-      com.grfics.service="router"
 
 # Install required tools
 RUN apt-get update && \
@@ -77,6 +71,12 @@ COPY ulogd.conf /etc/ulogd.conf
 
 RUN chmod +x /entrypoint.sh
 
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="router"
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 
 ENTRYPOINT ["/entrypoint.sh"]
