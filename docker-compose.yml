@@ -6,7 +6,11 @@ services:
     image: fortiphyd/grfics-simulation
     container_name: simulation
     hostname: simulation
-    build: ./simulation
+    build:
+      context: ./simulation
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -31,7 +35,11 @@ services:
     image: fortiphyd/grfics-plc
     container_name: plc
     hostname: plc
-    build: ./plc
+    build:
+      context: ./plc
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -55,7 +63,11 @@ services:
     image: fortiphyd/grfics-workstation
     container_name: EWS
     hostname: EWS
-    build: ./workstation
+    build:
+      context: ./workstation
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -75,7 +87,11 @@ services:
   hmi:
     image: fortiphyd/grfics-scadalts
     container_name: HMI
-    build: ./scadalts
+    build:
+      context: ./scadalts
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     dns:
       - 192.168.90.200
     cap_add:
@@ -97,7 +113,11 @@ services:
     image: fortiphyd/grfics-attacker
     container_name: kali
     hostname: kali
-    build: ./attacker
+    build:
+      context: ./attacker
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -118,7 +138,11 @@ services:
     image: fortiphyd/grfics-router
     container_name: router
     hostname: router
-    build: ./router
+    build:
+      context: ./router
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "bash", "-c", "ip route | grep -q 192.168.95.0 || exit 1"]
@@ -146,7 +170,11 @@ services:
     image: fortiphyd/grfics-caldera
     container_name: caldera
     hostname: caldera
-    build: ./caldera
+    build:
+      context: ./caldera
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     restart: unless-stopped
     ports:
       - "8888:8888"
@@ -164,7 +192,11 @@ services:
     image: fortiphyd/grfics-wazuh
     container_name: wazuh
     hostname: wazuh
-    build: ./wazuh
+    build:
+      context: ./wazuh
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     restart: unless-stopped
     ports:
       - "1514:1514"     # Wazuh agent enrollment

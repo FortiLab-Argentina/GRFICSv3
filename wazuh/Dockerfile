@@ -1,4 +1,10 @@
 FROM ubuntu:22.04
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="wazuh"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Fake systemctl so dpkg postinstall scripts don't fail trying to start services

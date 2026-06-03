@@ -1,4 +1,10 @@
 FROM eclipse-temurin:11
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="HMI"
 
 ENV SCADA_LTS_VERSION=2.7.8.1 \
     CATALINA_HOME=/usr/local/tomcat \

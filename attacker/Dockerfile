@@ -1,4 +1,10 @@
 FROM kalilinux/kali-rolling:latest
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="kali"
 
 # Build args / defaults
 ARG DEBIAN_FRONTEND=noninteractive

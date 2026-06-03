@@ -463,6 +463,48 @@
 
 const SIM_POLL_MS = 3000;
 
+  // ---- About / version ----
+  let _versionData = null;
+
+  async function fetchVersionInfo() {
+    try {
+      const res = await fetch('/version.php', { cache: 'no-store' });
+      if (res.ok) {
+        _versionData = await res.json();
+        const hint = document.getElementById('versionHint');
+        if (hint && _versionData.version) hint.textContent = _versionData.version;
+      }
+    } catch { /* leave as unknown */ }
+  }
+
+  function openAbout() {
+    const d = _versionData || {};
+    document.getElementById('aboutVersion').textContent = d.version || 'unknown';
+    document.getElementById('aboutCreated').textContent = d.created  || 'unknown';
+    document.getElementById('aboutModal').style.display = 'flex';
+  }
+
+  function closeAbout() {
+    document.getElementById('aboutModal').style.display = 'none';
+  }
+
+  function copyVersionReport() {
+    const d = _versionData || {};
+    const text = [
+      'GRFICSv3 Version Report',
+      'Generated: ' + new Date().toISOString(),
+      '',
+      'Version:  ' + (d.version || 'unknown'),
+      'Built:    ' + (d.created  || 'unknown'),
+    ].join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyReportBtn');
+      if (!btn) return;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy for bug report'; }, 2000);
+    });
+  }
+
   function isValidJson(text) {
     try {
       const obj = JSON.parse(text);
@@ -511,6 +553,7 @@ const SIM_POLL_MS = 3000;
 
     refreshSimulationStatus();
     setInterval(refreshSimulationStatus, SIM_POLL_MS);
+    fetchVersionInfo();
 
     // Unity init
     unityInstance = UnityLoader.instantiate(
@@ -608,6 +651,16 @@ const SIM_POLL_MS = 3000;
           </div>
         </button>
 
+        <div class="section-title">Info</div>
+
+        <button class="btn" onclick="openAbout()">
+          <div class="icon">ℹ️</div>
+          <div class="meta">
+            <div class="label">About / Version</div>
+            <div class="hint" id="versionHint">Loading…</div>
+          </div>
+        </button>
+
         <div class="sidebar-footer">
           GRFICSv3 is an open-source OT security lab by Fortiphyd Logic
         </div>
@@ -630,6 +683,45 @@ const SIM_POLL_MS = 3000;
         </div>
       </main>
     </div>
+
+  <!-- About / version modal -->
+  <div id="aboutModal"
+       style="display:none; position:fixed; inset:0; z-index:1000;
+              background:rgba(0,0,0,0.72); align-items:center; justify-content:center;"
+       onclick="if(event.target===this)closeAbout()">
+    <div style="background:#0f1722; border:1px solid rgba(255,255,255,0.12);
+                border-radius:16px; padding:28px 28px 22px; max-width:460px; width:90%;
+                position:relative; box-shadow:0 24px 64px rgba(0,0,0,0.6);
+                color:#e8eef6; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+      <button onclick="closeAbout()"
+              style="position:absolute; top:14px; right:16px; background:none; border:none;
+                     color:#e8eef6; font-size:20px; cursor:pointer; opacity:0.55; line-height:1;">✕</button>
+      <h2 style="margin:0 0 4px; font-size:17px; font-weight:650;">About GRFICSv3</h2>
+      <p style="margin:0 0 20px; opacity:0.5; font-size:12px;">
+        Fortiphyd Logic — ICS/OT Cybersecurity Training Lab
+      </p>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tr>
+          <td style="padding:10px 0; opacity:0.6; width:80px;">Version</td>
+          <td style="padding:10px 0; font-family:monospace;" id="aboutVersion">—</td>
+        </tr>
+        <tr style="border-top:1px solid rgba(255,255,255,0.08);">
+          <td style="padding:10px 0; opacity:0.6;">Built</td>
+          <td style="padding:10px 0; font-family:monospace;" id="aboutCreated">—</td>
+        </tr>
+      </table>
+      <p style="font-size:11px; opacity:0.4; margin:4px 0 18px;">
+        All containers share the same build version.
+      </p>
+      <button id="copyReportBtn" onclick="copyVersionReport()"
+              style="appearance:none; background:rgba(255,255,255,0.06);
+                     border:1px solid rgba(255,255,255,0.14); color:#e8eef6;
+                     border-radius:10px; padding:10px 16px; cursor:pointer; font-size:13px;
+                     transition:background 120ms ease;">
+        Copy for bug report
+      </button>
+    </div>
+  </div>
 
   </body>
 </html>

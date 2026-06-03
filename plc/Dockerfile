@@ -39,6 +39,12 @@ VOLUME /docker_persistent
 
 # ---- Second stage for your custom program/configs ----
 FROM base AS openplc-custom
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="plc"
 
 WORKDIR /workdir
 

@@ -1,4 +1,10 @@
 FROM ubuntu:22.04
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="EWS"
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1

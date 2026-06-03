@@ -16,6 +16,14 @@ RUN make
 
 # ---- Stage 2: Runtime image ----
 FROM python:3.11-slim@sha256:7a3ed1226224bcc1fe5443262363d42f48cf832a540c1836ba8ccbeaadf8637c
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="simulation"
+RUN printf '{"version":"%s","created":"%s"}\n' "$BUILD_VERSION" "$BUILD_CREATED" \
+    > /etc/grfics-release
 
 # Install runtime libraries and network tools
 RUN apt-get update && apt-get install -y --no-install-recommends \

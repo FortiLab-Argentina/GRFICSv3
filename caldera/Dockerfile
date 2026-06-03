@@ -11,6 +11,12 @@ RUN (cd plugins/magma; npm install && npm run build)
 # This is the runtime stage
 # It containes all dependencies required by caldera
 FROM debian:bookworm-slim AS runtime
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="caldera"
 
 # There are two variants - slim and full
 # The slim variant excludes some dependencies of *emu* and *atomic* that can be downloaded on-demand if needed
