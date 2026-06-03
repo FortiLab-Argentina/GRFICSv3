@@ -137,13 +137,15 @@ docker compose pull
 docker compose up -d
 ```
 
+> **Upgrading from a previous version?** See [Updating](#️-updating) below — old volumes can cause issues after an upgrade.
+
 ### 🏗️ Option B: Clone and build
 
 ```bash
 sudo apt install -y git git-lfs
 git clone https://github.com/Fortiphyd/GRFICSv3.git
 cd GRFICSv3
-docker compose build
+./build.sh
 ```
 
 Start the environment:
@@ -151,6 +153,8 @@ Start the environment:
 ```bash
 docker compose up -d
 ```
+
+> **Upgrading from a previous version?** See [Updating](#️-updating) below — old volumes can cause issues after an upgrade.
 
 Watch logs (optional):
 
@@ -182,6 +186,33 @@ you should see the 3D chemical plant simulation come to life.
   ```bash
   docker compose start
   ```
+
+---
+
+## ⬆️ Updating
+
+GRFICSv3 stores persistent state in named Docker volumes (`router_config`, `plc_volume`, `scadalts_db`, etc.). These volumes survive image updates, so stale data from an older version can cause containers to misbehave even after pulling the latest images. **We recommend always wiping volumes when updating:**
+
+```bash
+docker compose down --volumes
+
+# Option A — prebuilt images
+docker compose pull
+
+# Option B — built from source
+git pull
+./build.sh
+
+docker compose up -d
+```
+
+> ⚠️ `--volumes` deletes all persistent data including firewall rules, PLC programs, and HMI configuration. For a lab environment this is usually fine — everything re-initialises from the image defaults on next startup.
+
+### Checking your version
+
+Open the simulation dashboard at [http://localhost](http://localhost), click the **ℹ️ About / Version** button in the sidebar, and click **Copy for bug report** to get a formatted version summary. Include this when reporting issues.
+
+---
 
 ### Optional: Wazuh SIEM
 
