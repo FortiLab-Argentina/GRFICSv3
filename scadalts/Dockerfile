@@ -91,4 +91,10 @@ RUN sed -i 's|</ossec_config>|<localfile>\n    <log_format>syslog</log_format>\n
 
 EXPOSE 8080 3306
 
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="HMI"
 CMD ["/usr/bin/supervisord", "-n"]

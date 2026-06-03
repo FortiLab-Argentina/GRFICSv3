@@ -463,6 +463,88 @@
 
 const SIM_POLL_MS = 3000;
 
+  // ---- About / version ----
+  let _versionsData = null;
+
+  const ROLES = {
+    'simulation': 'Process Simulation',
+    'plc':        'PLC (OpenPLC)',
+    'EWS':        'Engineering Workstation',
+    'HMI':        'HMI (ScadaLTS)',
+    'kali':       'Attacker Workstation',
+    'router':     'Router / Firewall',
+    'caldera':    'Caldera C2',
+    'wazuh':      'Wazuh SIEM',
+  };
+
+  async function fetchVersionInfo() {
+    try {
+      const res = await fetch('/versions.php', { cache: 'no-store' });
+      if (!res.ok) return;
+      _versionsData = await res.json();
+      const sim = (_versionsData.containers || []).find(c => c.name === 'simulation');
+      const hint = document.getElementById('versionHint');
+      if (hint) hint.textContent = (sim && sim.version !== 'unknown') ? sim.version : 'click to view';
+    } catch { /* leave as-is */ }
+  }
+
+  function _statusColor(s) {
+    return s === 'running' ? '#37d67a' : s === 'not found' ? '#6b7280' : '#ef4444';
+  }
+
+  function openAbout() {
+    document.getElementById('aboutModal').style.display = 'flex';
+    if (!_versionsData) return;
+
+    const warn = document.getElementById('aboutDockerWarning');
+    if (warn) warn.style.display = _versionsData.docker_available ? 'none' : 'block';
+
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+      + '<tr style="opacity:0.45;border-bottom:1px solid rgba(255,255,255,0.12);">'
+      + '<th style="text-align:left;padding:4px 6px 6px 0;font-weight:500;">Container</th>'
+      + '<th style="text-align:left;padding:4px 8px 6px;font-weight:500;">Version</th>'
+      + '<th style="text-align:left;padding:4px 0 6px;font-weight:500;">Status</th>'
+      + '</tr>';
+    for (const c of (_versionsData.containers || [])) {
+      const color = _statusColor(c.status);
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">`
+        + `<td style="padding:6px 6px 6px 0;">`
+        + `<div style="font-size:12px;font-weight:500;">${c.name}</div>`
+        + `<div style="opacity:0.4;font-size:10px;">${ROLES[c.name] || ''}</div></td>`
+        + `<td style="padding:6px 8px;font-family:monospace;font-size:11px;">${c.version}</td>`
+        + `<td style="padding:6px 0;white-space:nowrap;">`
+        + `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;">`
+        + `<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;"></span>`
+        + `${c.status}</span></td></tr>`;
+    }
+    html += '</table>';
+    document.getElementById('aboutContainerTable').innerHTML = html;
+  }
+
+  function closeAbout() {
+    document.getElementById('aboutModal').style.display = 'none';
+  }
+
+  function copyVersionReport() {
+    const d = _versionsData;
+    const lines = ['GRFICSv3 Version Report', 'Generated: ' + new Date().toISOString(), ''];
+    if (d && d.containers) {
+      lines.push('Container'.padEnd(14) + 'Version'.padEnd(28) + 'Built'.padEnd(28) + 'Status');
+      lines.push('-'.repeat(82));
+      for (const c of d.containers) {
+        lines.push(c.name.padEnd(14) + c.version.padEnd(28) + c.created.padEnd(28) + c.status);
+      }
+    } else {
+      lines.push('(version data unavailable)');
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('copyReportBtn');
+      if (!btn) return;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy for bug report'; }, 2000);
+    });
+  }
+
   function isValidJson(text) {
     try {
       const obj = JSON.parse(text);
@@ -511,6 +593,7 @@ const SIM_POLL_MS = 3000;
 
     refreshSimulationStatus();
     setInterval(refreshSimulationStatus, SIM_POLL_MS);
+    fetchVersionInfo();
 
     // Unity init
     unityInstance = UnityLoader.instantiate(
@@ -608,6 +691,16 @@ const SIM_POLL_MS = 3000;
           </div>
         </button>
 
+        <div class="section-title">Info</div>
+
+        <button class="btn" onclick="openAbout()">
+          <div class="icon">ℹ️</div>
+          <div class="meta">
+            <div class="label">About / Version</div>
+            <div class="hint" id="versionHint">Loading…</div>
+          </div>
+        </button>
+
         <div class="sidebar-footer">
           GRFICSv3 is an open-source OT security lab by Fortiphyd Logic
         </div>
@@ -630,6 +723,39 @@ const SIM_POLL_MS = 3000;
         </div>
       </main>
     </div>
+
+  <!-- About / version modal -->
+  <div id="aboutModal"
+       style="display:none; position:fixed; inset:0; z-index:1000;
+              background:rgba(0,0,0,0.72); align-items:center; justify-content:center;"
+       onclick="if(event.target===this)closeAbout()">
+    <div style="background:#0f1722; border:1px solid rgba(255,255,255,0.12);
+                border-radius:16px; padding:28px 28px 22px; max-width:540px; width:90%;
+                position:relative; box-shadow:0 24px 64px rgba(0,0,0,0.6);
+                color:#e8eef6; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+      <button onclick="closeAbout()"
+              style="position:absolute; top:14px; right:16px; background:none; border:none;
+                     color:#e8eef6; font-size:20px; cursor:pointer; opacity:0.55; line-height:1;">✕</button>
+      <h2 style="margin:0 0 4px; font-size:17px; font-weight:650;">About GRFICSv3</h2>
+      <p style="margin:0 0 16px; opacity:0.5; font-size:12px;">
+        Fortiphyd Logic — ICS/OT Cybersecurity Training Lab
+      </p>
+      <div id="aboutContainerTable" style="margin-bottom:12px;">
+        <p style="opacity:0.35;font-size:12px;margin:0;">Loading…</p>
+      </div>
+      <div id="aboutDockerWarning"
+           style="display:none;margin-bottom:12px;font-size:11px;color:#fbbf24;">
+        ⚠ Docker socket unavailable — other container versions cannot be queried.
+      </div>
+      <button id="copyReportBtn" onclick="copyVersionReport()"
+              style="appearance:none; background:rgba(255,255,255,0.06);
+                     border:1px solid rgba(255,255,255,0.14); color:#e8eef6;
+                     border-radius:10px; padding:10px 16px; cursor:pointer; font-size:13px;
+                     transition:background 120ms ease;">
+        Copy for bug report
+      </button>
+    </div>
+  </div>
 
   </body>
 </html>

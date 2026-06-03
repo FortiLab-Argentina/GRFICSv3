@@ -23,11 +23,22 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Versions (please complete the following information):**
- - OS: [e.g. Windows]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
- - Build type (pulling prebuilt image vs building it yourself)
+**Version report**
+Open the simulation dashboard (port 80), click the **ℹ️ About / Version** button in the sidebar, then click **Copy for bug report** and paste the output here:
+
+```
+(paste version report here)
+```
+
+If the lab was built before version tracking was added, please paste the output of:
+```
+git log --oneline -1
+```
+
+**Environment**
+ - Host OS: [e.g. Ubuntu 24.04, Windows 11]
+ - Docker version: [e.g. 27.3]
+ - How you built the lab: [`./build.sh` / `docker compose build` / pre-built image]
 
 **Additional context**
 Add any other context about the problem here.

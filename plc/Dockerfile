@@ -59,4 +59,10 @@ RUN apt-get update && apt-get install -y \
     && ./install.sh docker
 
 # ENTRYPOINT at the very end (fast to change)
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="plc"
 ENTRYPOINT ["/workdir/start_openplc.sh"]

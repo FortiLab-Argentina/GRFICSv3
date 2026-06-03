@@ -117,5 +117,11 @@ RUN sed -i '/<link rel="icon"/d' /opt/noVNC/vnc.html && \
 EXPOSE ${NOVNC_PORT} ${VNC_PORT}
 
 USER root
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="EWS"
 ENTRYPOINT ["/usr/local/bin/start.sh"]
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

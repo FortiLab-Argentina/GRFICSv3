@@ -127,4 +127,10 @@ EXPOSE 8022
 # Default FTP port for FTP C2 channel
 EXPOSE 2222
 
+ARG BUILD_VERSION=unknown
+ARG BUILD_CREATED=unknown
+LABEL org.opencontainers.image.version="$BUILD_VERSION" \
+      org.opencontainers.image.revision="$BUILD_VERSION" \
+      org.opencontainers.image.created="$BUILD_CREATED" \
+      com.grfics.service="caldera"
 ENTRYPOINT ["python3", "server.py"]
