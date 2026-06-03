@@ -21,6 +21,8 @@ services:
       retries: 5
     dns:
       - 192.168.95.200
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       a-grfics-admin:
         priority: 10
