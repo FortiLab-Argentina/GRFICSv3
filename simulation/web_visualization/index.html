@@ -498,6 +498,11 @@ const SIM_POLL_MS = 3000;
 
     const warn = document.getElementById('aboutDockerWarning');
     if (warn) warn.style.display = _versionsData.docker_available ? 'none' : 'block';
+    const notFound = document.getElementById('aboutNotFoundWarning');
+    if (notFound) notFound.style.display = (
+      _versionsData.docker_available &&
+      (_versionsData.containers || []).some(c => c.status === 'not found')
+    ) ? 'block' : 'none';
 
     let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
       + '<tr style="opacity:0.45;border-bottom:1px solid rgba(255,255,255,0.12);">'
@@ -681,28 +686,9 @@ const SIM_POLL_MS = 3000;
           </div>
         </button>
 
-        <div class="section-title">Simulation</div>
-
-        <button class="btn" onclick="unityInstance && unityInstance.SetFullscreen(1)">
-          <div class="icon">⛶</div>
-          <div class="meta">
-            <div class="label">Fullscreen Simulation</div>
-            <div class="hint">Expand the Unity view</div>
-          </div>
-        </button>
-
-        <div class="section-title">Info</div>
-
-        <button class="btn" onclick="openAbout()">
-          <div class="icon">ℹ️</div>
-          <div class="meta">
-            <div class="label">About / Version</div>
-            <div class="hint" id="versionHint">Loading…</div>
-          </div>
-        </button>
-
-        <div class="sidebar-footer">
-          GRFICSv3 is an open-source OT security lab by Fortiphyd Logic
+        <div class="sidebar-footer" onclick="openAbout()" style="cursor:pointer;" title="Click to view version info">
+          GRFICSv3 — open-source OT security lab by Fortiphyd Logic
+          <br><span id="versionHint" style="opacity:0.6;font-size:11px;">Loading version…</span>
         </div>
       </aside>
 
@@ -746,6 +732,12 @@ const SIM_POLL_MS = 3000;
       <div id="aboutDockerWarning"
            style="display:none;margin-bottom:12px;font-size:11px;color:#fbbf24;">
         ⚠ Docker socket unavailable — other container versions cannot be queried.
+        Recreate the simulation container with <code style="font-size:11px;">docker compose up -d simulation</code> to fix this.
+      </div>
+      <div id="aboutNotFoundWarning"
+           style="display:none;margin-bottom:12px;font-size:11px;color:#fbbf24;">
+        ⚠ Some containers show "not found". This usually means they were pulled from Docker Hub
+        before version tracking was added. Rebuild with <code style="font-size:11px;">./build.sh</code> to stamp versions.
       </div>
       <button id="copyReportBtn" onclick="copyVersionReport()"
               style="appearance:none; background:rgba(255,255,255,0.06);
