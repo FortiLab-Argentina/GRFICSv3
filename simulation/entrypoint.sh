@@ -17,6 +17,13 @@ ip addr add 192.168.95.15/24 dev "$IF"
 route add -net 192.168.90.0/24 gw 192.168.95.200
 
 echo "[entrypoint] Starting nginx..."
+# Give www-data access to the Docker socket so versions.php can query container labels.
+# The socket GID varies by host, so we match it dynamically rather than hardcoding.
+if [ -S /var/run/docker.sock ]; then
+    DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+    groupadd -g "$DOCKER_GID" dockersock 2>/dev/null || true
+    usermod -aG dockersock www-data
+fi
 php-fpm8.2 -D
 nginx
 
