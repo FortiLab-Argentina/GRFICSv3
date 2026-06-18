@@ -21,8 +21,15 @@ echo "[entrypoint] Starting nginx..."
 # The socket GID varies by host, so we match it dynamically rather than hardcoding.
 if [ -S /var/run/docker.sock ]; then
     DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-    groupadd -g "$DOCKER_GID" dockersock 2>/dev/null || true
-    usermod -aG dockersock www-data
+    # A group with this GID may already exist (e.g. 'docker' on a fresh Ubuntu install).
+    # If so, reuse it rather than trying to create 'dockersock', which would fail and
+    # leave no group for the subsequent usermod call.
+    DOCKER_GROUP=$(getent group "$DOCKER_GID" | cut -d: -f1)
+    if [ -z "$DOCKER_GROUP" ]; then
+        groupadd -g "$DOCKER_GID" dockersock
+        DOCKER_GROUP=dockersock
+    fi
+    usermod -aG "$DOCKER_GROUP" www-data
 fi
 php-fpm8.2 -D
 nginx
