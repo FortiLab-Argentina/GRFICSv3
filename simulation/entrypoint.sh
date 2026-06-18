@@ -1,9 +1,12 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Detect interface by IP
 IF=$(ip -o -4 addr show | awk '$4 ~ /^192\.168\.95\./ {print $2}' | head -n1)
-
+if [ -z "$IF" ]; then
+    echo "[entrypoint] ERROR: no interface found with 192.168.95.x address" >&2
+    exit 1
+fi
 
 echo "[entrypoint] Adding IP aliases to $IF manually..."
 
@@ -31,8 +34,8 @@ if [ -S /var/run/docker.sock ]; then
     fi
     usermod -aG "$DOCKER_GROUP" www-data
 fi
-php-fpm8.2 -D
-nginx
+php-fpm8.2 -D || { echo "[entrypoint] ERROR: php-fpm failed to start" >&2; exit 1; }
+nginx || { echo "[entrypoint] ERROR: nginx failed to start" >&2; exit 1; }
 
 echo "[entrypoint] Starting application..."
 exec "$@"
