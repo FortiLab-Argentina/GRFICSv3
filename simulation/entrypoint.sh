@@ -2,22 +2,22 @@
 set -euo pipefail
 
 # Detect interface by IP
-IF=$(ip -o -4 addr show | awk '$4 ~ /^192\.168\.95\./ {print $2}' | head -n1)
+IF=$(ip -o -4 addr show | awk '$4 ~ /^192\.168\.243\./ {print $2}' | head -n1)
 if [ -z "$IF" ]; then
-    echo "[entrypoint] ERROR: no interface found with 192.168.95.x address" >&2
+    echo "[entrypoint] ERROR: no interface found with 192.168.243.x address" >&2
     exit 1
 fi
 
 echo "[entrypoint] Adding IP aliases to $IF manually..."
 
-ip addr add 192.168.95.10/24 dev "$IF"
-ip addr add 192.168.95.11/24 dev "$IF"
-ip addr add 192.168.95.12/24 dev "$IF"
-ip addr add 192.168.95.13/24 dev "$IF"
-ip addr add 192.168.95.14/24 dev "$IF"
-ip addr add 192.168.95.15/24 dev "$IF"
+ip addr add 192.168.243.6/28 dev "$IF"
+ip addr add 192.168.243.7/28 dev "$IF"
+ip addr add 192.168.243.8/28 dev "$IF"
+ip addr add 192.168.243.9/28 dev "$IF"
+ip addr add 192.168.243.10/28 dev "$IF"
+ip addr add 192.168.243.11/28 dev "$IF"
 
-route add -net 192.168.90.0/24 gw 192.168.95.200
+route add -net 192.168.243.0/24 gw 192.168.243.1
 
 echo "[entrypoint] Starting nginx..."
 # Give www-data access to the Docker socket so versions.php can query container labels.

@@ -1,12 +1,12 @@
 auto eth0
 iface eth0 inet static
-    address 192.168.95.45
-    netmask 255.255.255.0
+    address 192.168.243.5
+    netmask 255.255.255.240
     gateway 192.168.95.1
 
-    up ip addr add 192.168.95.10/24 dev eth0
-    up ip addr add 192.168.95.11/24 dev eth0
-    up ip addr add 192.168.95.12/24 dev eth0
-    up ip addr add 192.168.95.13/24 dev eth0
-    up ip addr add 192.168.95.14/24 dev eth0
-    up ip addr add 192.168.95.15/24 dev eth0
+    up ip addr add 192.168.243.6/28 dev eth0
+    up ip addr add 192.168.243.7/28 dev eth0
+    up ip addr add 192.168.243.8/28 dev eth0
+    up ip addr add 192.168.243.9/28 dev eth0
+    up ip addr add 192.168.243.10/28 dev eth0
+    up ip addr add 192.168.243.11/28 dev eth0

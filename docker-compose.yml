@@ -20,14 +20,14 @@ services:
       interval: 5s
       retries: 5
     dns:
-      - 192.168.95.200
+      - 192.168.243.1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       a-grfics-admin:
         priority: 10
-      b-ics-net:
-        ipv4_address: 192.168.95.45
+      b-level1-net:
+        ipv4_address: 192.168.243.5
         priority: 100
 
     # Optional if you want to override default CMD
@@ -53,12 +53,12 @@ services:
       retries: 5
       start_period: 30s
     dns:
-      - 192.168.95.200
+      - 192.168.243.17
     networks:
       a-grfics-admin:
         priority: 10
-      b-ics-net:
-        ipv4_address: 192.168.95.2
+      c-level2-net:
+        ipv4_address: 192.168.243.20
         priority: 100
     volumes:
       - plc_volume:/docker_persistent
@@ -67,33 +67,33 @@ services:
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
 
-  ews:
-    image: fortiphyd/grfics-workstation
-    container_name: EWS
-    hostname: EWS
-    build:
-      context: ./workstation
-      args:
-        BUILD_VERSION: ${BUILD_VERSION:-unknown}
-        BUILD_CREATED: ${BUILD_CREATED:-unknown}
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - "6080:6080"
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    dns:
-      - 192.168.95.200
-    networks:
-      a-grfics-admin:
-        priority: 10
-      b-ics-net:
-        ipv4_address: 192.168.95.5
-        priority: 100
+  # ews:
+  #   image: fortiphyd/grfics-workstation
+  #   container_name: EWS
+  #   hostname: EWS
+  #   build:
+  #     context: ./workstation
+  #     args:
+  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
+  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
+  #   cap_add:
+  #     - NET_ADMIN
+  #   ports:
+  #     - "6080:6080"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   dns:
+  #     - 192.168.95.200
+  #   networks:
+  #     a-grfics-admin:
+  #       priority: 10
+  #     b-ics-net:
+  #       ipv4_address: 192.168.95.5
+  #       priority: 100
 
     # Optional if you want to override default CMD
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
@@ -107,7 +107,7 @@ services:
         BUILD_VERSION: ${BUILD_VERSION:-unknown}
         BUILD_CREATED: ${BUILD_CREATED:-unknown}
     dns:
-      - 192.168.90.200
+      - 192.168.243.33
     cap_add:
       - NET_ADMIN
     ports:
@@ -121,76 +121,76 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      c-dmz-net:
-        ipv4_address: 192.168.90.107
+      d-level3-net:
+        ipv4_address: 192.168.243.36
         priority: 100
     volumes:
       - scadalts_db:/var/lib/mysql
     # Optional if you want to override default CMD
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
-  kali:
-    image: fortiphyd/grfics-attacker
-    container_name: kali
-    hostname: kali
-    build:
-      context: ./attacker
-      args:
-        BUILD_VERSION: ${BUILD_VERSION:-unknown}
-        BUILD_CREATED: ${BUILD_CREATED:-unknown}
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - "6088:6080"
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    dns:
-      - 192.168.90.200
-    networks:
-      a-grfics-admin:
-        priority: 10
-      c-dmz-net:
-        ipv4_address: 192.168.90.6
-        priority: 100
-    sysctls:
-      net.ipv4.conf.default.arp_announce: 2
-      net.ipv4.conf.all.arp_announce: 2
+  # kali:
+  #   image: fortiphyd/grfics-attacker
+  #   container_name: kali
+  #   hostname: kali
+  #   build:
+  #     context: ./attacker
+  #     args:
+  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
+  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
+  #   cap_add:
+  #     - NET_ADMIN
+  #   ports:
+  #     - "6088:6080"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   dns:
+  #     - 192.168.90.200
+  #   networks:
+  #     a-grfics-admin:
+  #       priority: 10
+  #     c-dmz-net:
+  #       ipv4_address: 192.168.90.6
+  #       priority: 100
+  #   sysctls:
+  #     net.ipv4.conf.default.arp_announce: 2
+  #     net.ipv4.conf.all.arp_announce: 2
 
-  router:
-    image: fortiphyd/grfics-router
-    container_name: router
-    hostname: router
-    build:
-      context: ./router
-      args:
-        BUILD_VERSION: ${BUILD_VERSION:-unknown}
-        BUILD_CREATED: ${BUILD_CREATED:-unknown}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "bash", "-c", "ip route | grep -q 192.168.95.0 || exit 1"]
-      interval: 5s
-      retries: 5
-    cap_add:
-     - NET_ADMIN
-     - NET_RAW
-    sysctls:
-      net.ipv4.ip_forward: '1'
-    environment:
-      - FWUI_SECRET_KEY=some-long-secret-you-generate
-    ports:
-     - "51820:51820/udp"
-    volumes:
-     - router_config:/etc/firewall
-    networks:
-      a-grfics-admin:
-      b-ics-net:
-        ipv4_address: 192.168.95.200
-      c-dmz-net:
-        ipv4_address: 192.168.90.200
+  # router:
+  #   image: fortiphyd/grfics-router
+  #   container_name: router
+  #   hostname: router
+  #   build:
+  #     context: ./router
+  #     args:
+  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
+  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "bash", "-c", "ip route | grep -q 192.168.95.0 || exit 1"]
+  #     interval: 5s
+  #     retries: 5
+  #   cap_add:
+  #    - NET_ADMIN
+  #    - NET_RAW
+  #   sysctls:
+  #     net.ipv4.ip_forward: '1'
+  #   environment:
+  #     - FWUI_SECRET_KEY=some-long-secret-you-generate
+  #   ports:
+  #    - "51820:51820/udp"
+  #   volumes:
+  #    - router_config:/etc/firewall
+  #   networks:
+  #     a-grfics-admin:
+  #     b-ics-net:
+  #       ipv4_address: 192.168.95.200
+  #     c-dmz-net:
+  #       ipv4_address: 192.168.90.200
 
   caldera:
     image: fortiphyd/grfics-caldera
@@ -211,63 +211,71 @@ services:
       retries: 5
       start_period: 30s
     dns:
-      - 192.168.90.200
+      - 192.168.243.33
     networks:
       a-grfics-admin:
         priority: 10
-      c-dmz-net:
-        ipv4_address: 192.168.90.250
+      d-level3-net:
+        ipv4_address: 192.168.243.37
         priority: 100
 
-  wazuh:
-    profiles: [siem]
-    image: fortiphyd/grfics-wazuh
-    container_name: wazuh
-    hostname: wazuh
-    build:
-      context: ./wazuh
-      args:
-        BUILD_VERSION: ${BUILD_VERSION:-unknown}
-        BUILD_CREATED: ${BUILD_CREATED:-unknown}
-    restart: unless-stopped
-    ports:
-      - "1514:1514"     # Wazuh agent enrollment
-      - "1515:1515"     # Wazuh agent communication
-      - "55000:55000"   # Wazuh REST API
-      - "5601:5601"     # Dashboard HTTP
-    cap_add:
-      - NET_ADMIN
-    volumes:
-      - wazuh_manager_data:/var/ossec
-      - wazuh_indexer_data:/var/lib/wazuh-indexer
-    dns:
-      - 192.168.90.200
-    networks:
-      a-grfics-admin:
-        priority: 10
-      c-dmz-net:
-        ipv4_address: 192.168.90.20
-        priority: 100
+  # wazuh:
+  #   profiles: [siem]
+  #   image: fortiphyd/grfics-wazuh
+  #   container_name: wazuh
+  #   hostname: wazuh
+  #   build:
+  #     context: ./wazuh
+  #     args:
+  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
+  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
+  #   restart: unless-stopped
+  #   ports:
+  #     - "1514:1514"     # Wazuh agent enrollment
+  #     - "1515:1515"     # Wazuh agent communication
+  #     - "55000:55000"   # Wazuh REST API
+  #     - "5601:5601"     # Dashboard HTTP
+  #   cap_add:
+  #     - NET_ADMIN
+  #   volumes:
+  #     - wazuh_manager_data:/var/ossec
+  #     - wazuh_indexer_data:/var/lib/wazuh-indexer
+  #   dns:
+  #     - 192.168.90.200
+  #   networks:
+  #     a-grfics-admin:
+  #       priority: 10
+  #     c-dmz-net:
+  #       ipv4_address: 192.168.90.20
+  #       priority: 100
 
 networks:
-  b-ics-net:
+  b-level1-net:
     driver: macvlan
     driver_opts:
-      parent: eth0  # Replace with your actual host NIC
+      parent: ens19  # Replace with your actual host NIC
     ipam:
       config:
-        - subnet: 192.168.95.0/24
-          gateway: 192.168.95.1
+        - subnet: 192.168.243.0/28
+          gateway: 192.168.243.1
 
-  c-dmz-net:
+  c-level2-net:
     driver: macvlan
     driver_opts:
-      parent: eth0  # Replace with your actual host NIC
+      parent: ens20  # Replace with your actual host NIC
     ipam:
       config:
-        - subnet: 192.168.90.0/24
-          gateway: 192.168.90.1
+        - subnet: 192.168.243.16/28
+          gateway: 192.168.243.17
 
+  d-level3-net:
+      driver: macvlan
+      driver_opts:
+        parent: ens21  # Replace with your actual host NIC
+      ipam:
+        config:
+          - subnet: 192.168.243.32/28
+            gateway: 192.168.243.33
 
   a-grfics-admin:
     driver: bridge
