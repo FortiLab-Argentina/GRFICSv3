@@ -58,7 +58,7 @@ def run_async_server():
     # run the server you want
     # ----------------------------------------------------------------------- # 
     
-    StartTcpServer(context_feed1, identity=identity_feed1, address=("192.168.95.10", 502))
+    StartTcpServer(context_feed1, identity=identity_feed1, address=("192.168.243.6", 502))
 
 
 if __name__ == "__main__":
