@@ -18,4 +18,4 @@ async def handleanalyzer(context, reader, writer, interval):
 
 
 if __name__ == "__main__":
-    asyncio.run(modbusdevice.run_device("Analyzer", "192.168.243.11", handleanalyzer))
+    asyncio.run(modbusdevice.run_device("Analyzer", "192.168.243.15", handleanalyzer))

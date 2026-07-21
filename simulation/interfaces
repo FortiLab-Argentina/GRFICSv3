@@ -4,9 +4,9 @@ iface eth0 inet static
     netmask 255.255.255.240
     gateway 192.168.243.1
 
-    up ip addr add 192.168.243.6/28 dev eth0
-    up ip addr add 192.168.243.7/28 dev eth0
-    up ip addr add 192.168.243.8/28 dev eth0
-    up ip addr add 192.168.243.9/28 dev eth0
     up ip addr add 192.168.243.10/28 dev eth0
     up ip addr add 192.168.243.11/28 dev eth0
+    up ip addr add 192.168.243.12/28 dev eth0
+    up ip addr add 192.168.243.13/28 dev eth0
+    up ip addr add 192.168.243.14/28 dev eth0
+    up ip addr add 192.168.243.15/28 dev eth0
