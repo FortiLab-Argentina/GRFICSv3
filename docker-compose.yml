@@ -92,7 +92,7 @@ services:
       a-grfics-admin:
         priority: 10
       e-level3-net:
-        ipv4_address: 192.168.243.50
+        ipv4_address: 192.168.243.60
         priority: 100
 
     # Optional if you want to override default CMD
