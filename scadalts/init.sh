@@ -40,7 +40,7 @@ mariadb -uscada -pscada scadalts <<-EOSQL
   WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin');
 EOSQL
 
-ip route add 192.168.95.0/24 via 192.168.90.200 || true
+ip route add 192.168.243.0/24 via 192.168.243.33 || true
 
 # Wait for ScadaLTS/Tomcat to finish starting so Flyway migrations have run
 # before we import seed data (migrations add columns the seed depends on).
