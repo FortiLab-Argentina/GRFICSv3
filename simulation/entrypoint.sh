@@ -10,12 +10,12 @@ fi
 
 echo "[entrypoint] Adding IP aliases to $IF manually..."
 
-ip addr add 192.168.243.6/28 dev "$IF"
-ip addr add 192.168.243.7/28 dev "$IF"
-ip addr add 192.168.243.8/28 dev "$IF"
 ip addr add 192.168.243.9/28 dev "$IF"
 ip addr add 192.168.243.10/28 dev "$IF"
 ip addr add 192.168.243.11/28 dev "$IF"
+ip addr add 192.168.243.12/28 dev "$IF"
+ip addr add 192.168.243.13/28 dev "$IF"
+ip addr add 192.168.243.14/28 dev "$IF"
 
 route add -net 192.168.243.0/24 gw 192.168.243.1
 
