@@ -87,7 +87,7 @@ services:
       retries: 5
       start_period: 30s
     dns:
-      - 192.168.243.33
+      - 192.168.243.49
     networks:
       a-grfics-admin:
         priority: 10
