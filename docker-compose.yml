@@ -67,33 +67,33 @@ services:
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
 
-  # ews:
-  #   image: fortiphyd/grfics-workstation
-  #   container_name: EWS
-  #   hostname: EWS
-  #   build:
-  #     context: ./workstation
-  #     args:
-  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
-  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
-  #   cap_add:
-  #     - NET_ADMIN
-  #   ports:
-  #     - "6080:6080"
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 30s
-  #   dns:
-  #     - 192.168.95.200
-  #   networks:
-  #     a-grfics-admin:
-  #       priority: 10
-  #     b-ics-net:
-  #       ipv4_address: 192.168.95.5
-  #       priority: 100
+  ews:
+    image: fortiphyd/grfics-workstation
+    container_name: EWS
+    hostname: EWS
+    build:
+      context: ./workstation
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "6080:6080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    dns:
+      - 192.168.243.33
+    networks:
+      a-grfics-admin:
+        priority: 10
+      d-level3-net:
+        ipv4_address: 192.168.243.38
+        priority: 100
 
     # Optional if you want to override default CMD
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
