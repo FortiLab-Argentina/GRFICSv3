@@ -192,32 +192,32 @@ services:
   #     c-dmz-net:
   #       ipv4_address: 192.168.90.200
 
-  caldera:
-    image: fortiphyd/grfics-caldera
-    container_name: caldera
-    hostname: caldera
-    build:
-      context: ./caldera
-      args:
-        BUILD_VERSION: ${BUILD_VERSION:-unknown}
-        BUILD_CREATED: ${BUILD_CREATED:-unknown}
-    restart: unless-stopped
-    ports:
-      - "8888:8888"
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8888/"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    dns:
-      - 192.168.243.33
-    networks:
-      a-grfics-admin:
-        priority: 10
-      d-level2-net:
-        ipv4_address: 192.168.243.37
-        priority: 100
+  # caldera:
+  #   image: fortiphyd/grfics-caldera
+  #   container_name: caldera
+  #   hostname: caldera
+  #   build:
+  #     context: ./caldera
+  #     args:
+  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
+  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8888:8888"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-sf", "http://localhost:8888/"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   dns:
+  #     - 192.168.243.33
+  #   networks:
+  #     a-grfics-admin:
+  #       priority: 10
+  #     d-level2-net:
+  #       ipv4_address: 192.168.243.37
+  #       priority: 100
 
   # wazuh:
   #   profiles: [siem]
