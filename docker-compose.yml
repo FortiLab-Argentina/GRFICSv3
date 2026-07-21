@@ -26,7 +26,7 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      b-level1-net:
+      b-level0-net:
         ipv4_address: 192.168.243.5
         priority: 100
 
@@ -57,7 +57,7 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      c-level2-net:
+      c-level1-net:
         ipv4_address: 192.168.243.20
         priority: 100
     volumes:
@@ -91,8 +91,8 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      d-level3-net:
-        ipv4_address: 192.168.243.38
+      e-level3-net:
+        ipv4_address: 192.168.243.50
         priority: 100
 
     # Optional if you want to override default CMD
@@ -121,7 +121,7 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      d-level3-net:
+      d-level2-net:
         ipv4_address: 192.168.243.36
         priority: 100
     volumes:
@@ -215,7 +215,7 @@ services:
     networks:
       a-grfics-admin:
         priority: 10
-      d-level3-net:
+      d-level2-net:
         ipv4_address: 192.168.243.37
         priority: 100
 
@@ -250,7 +250,7 @@ services:
   #       priority: 100
 
 networks:
-  b-level1-net:
+  b-level0-net:
     driver: macvlan
     driver_opts:
       parent: ens19  # Replace with your actual host NIC
@@ -259,7 +259,7 @@ networks:
         - subnet: 192.168.243.0/28
           gateway: 192.168.243.1
 
-  c-level2-net:
+  c-level1-net:
     driver: macvlan
     driver_opts:
       parent: ens20  # Replace with your actual host NIC
@@ -268,7 +268,7 @@ networks:
         - subnet: 192.168.243.16/28
           gateway: 192.168.243.17
 
-  d-level3-net:
+  d-level2-net:
       driver: macvlan
       driver_opts:
         parent: ens21  # Replace with your actual host NIC
@@ -276,6 +276,15 @@ networks:
         config:
           - subnet: 192.168.243.32/28
             gateway: 192.168.243.33
+
+  e-level3-net:
+      driver: macvlan
+      driver_opts:
+        parent: ens22  # Replace with your actual host NIC
+      ipam:
+        config:
+          - subnet: 192.168.243.48/28
+            gateway: 192.168.243.49
 
   a-grfics-admin:
     driver: bridge
