@@ -8,7 +8,7 @@ if [ ! -f /home/${USERNAME}/.vnc/passwd ]; then
   chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.vnc
 fi
 
-route add -net 192.168.243.0/24 gw 192.168.243.50
+route add -net 192.168.243.0/24 gw 192.168.243.49
 
 if getent hosts wazuh >/dev/null 2>&1; then
     /var/ossec/bin/wazuh-control start || true
