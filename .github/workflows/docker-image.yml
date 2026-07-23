@@ -18,7 +18,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_NAMESPACE: fortilab-argentina
   DOCKER_TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
 
 jobs:

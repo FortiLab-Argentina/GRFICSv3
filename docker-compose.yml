@@ -4,7 +4,7 @@
 services:
   simulation:
     # image: fortiphyd/grfics-simulation
-    image: ghcr.io/FortiLab-Argentina/grfics-simulation:latest
+    image: ghcr.io/fortilab-argentina/grfics-simulation:latest
     container_name: simulation
     hostname: simulation
     # build:
@@ -36,7 +36,7 @@ services:
 
   plc:
     # image: fortiphyd/grfics-plc
-    image: ghcr.io/FortiLab-Argentina/grfics-plc:latest
+    image: ghcr.io/fortilab-argentina/grfics-plc:latest
     container_name: plc
     hostname: plc
     # build:
@@ -71,7 +71,7 @@ services:
 
   ews:
     # image: fortiphyd/grfics-workstation
-    image: ghcr.io/FortiLab-Argentina/grfics-workstation:latest
+    image: ghcr.io/fortilab-argentina/grfics-workstation:latest
     container_name: EWS
     hostname: EWS
     # build:
@@ -103,7 +103,7 @@ services:
 
   hmi:
     # image: fortiphyd/grfics-scadalts
-    image: ghcr.io/FortiLab-Argentina/grfics-scadalts:latest
+    image: ghcr.io/fortilab-argentina/grfics-scadalts:latest
     container_name: HMI
     # build:
     #   context: ./scadalts
