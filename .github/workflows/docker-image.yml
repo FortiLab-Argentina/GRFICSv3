@@ -24,7 +24,7 @@ env:
 jobs:
 
   # ================================================================
-  # Detect changed services
+  # Detect changed services!
   # ================================================================
   detect-changes:
     runs-on: ubuntu-latest
