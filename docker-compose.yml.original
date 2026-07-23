@@ -3,15 +3,14 @@
 
 services:
   simulation:
-    # image: fortiphyd/grfics-simulation
-    image: ghcr.io/FortiLab-Argentina/grfics-simulation:latest
+    image: fortiphyd/grfics-simulation
     container_name: simulation
     hostname: simulation
-    # build:
-    #   context: ./simulation
-    #   args:
-    #     BUILD_VERSION: ${BUILD_VERSION:-unknown}
-    #     BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    build:
+      context: ./simulation
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -35,15 +34,14 @@ services:
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
   plc:
-    # image: fortiphyd/grfics-plc
-    image: ghcr.io/FortiLab-Argentina/grfics-plc:latest
+    image: fortiphyd/grfics-plc
     container_name: plc
     hostname: plc
-    # build:
-    #   context: ./plc
-    #   args:
-    #     BUILD_VERSION: ${BUILD_VERSION:-unknown}
-    #     BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    build:
+      context: ./plc
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -70,15 +68,14 @@ services:
 
 
   ews:
-    # image: fortiphyd/grfics-workstation
-    image: ghcr.io/FortiLab-Argentina/grfics-workstation:latest
+    image: fortiphyd/grfics-workstation
     container_name: EWS
     hostname: EWS
-    # build:
-    #   context: ./workstation
-    #   args:
-    #     BUILD_VERSION: ${BUILD_VERSION:-unknown}
-    #     BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    build:
+      context: ./workstation
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     cap_add:
       - NET_ADMIN
     ports:
@@ -102,14 +99,13 @@ services:
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
   hmi:
-    # image: fortiphyd/grfics-scadalts
-    image: ghcr.io/FortiLab-Argentina/grfics-scadalts:latest
+    image: fortiphyd/grfics-scadalts
     container_name: HMI
-    # build:
-    #   context: ./scadalts
-    #   args:
-    #     BUILD_VERSION: ${BUILD_VERSION:-unknown}
-    #     BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    build:
+      context: ./scadalts
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
+        BUILD_CREATED: ${BUILD_CREATED:-unknown}
     dns:
       - 192.168.243.33
     cap_add:

@@ -1,55 +1,42 @@
 name: Build and Push Multi-Arch Docker Images
 
-on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-
-  release:
-    types:
-      - published
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
+
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  release:
+    types: [ published ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  DOCKERHUB_NAMESPACE: fortiphyd
   DOCKER_TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
 
 jobs:
 
-  # ================================================================
-  # Detect changed services
-  # ================================================================
   detect-changes:
     runs-on: ubuntu-latest
-
     outputs:
       services: ${{ steps.set-services.outputs.services }}
-
     steps:
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Detect changed services
-        id: set-services
-        shell: bash
+      - id: set-services
         run: |
           set -e
 
           SERVICES=()
-
           BASE_REF="${{ github.event.before }}"
-
-          if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then
+          if [ -z "$BASE_REF" ]; then
             BASE_REF="$(git rev-parse HEAD~1)"
           fi
 
@@ -69,94 +56,63 @@ jobs:
             ["wazuh"]="wazuh/"
           )
 
-          # Rebuild everything on release
+          # rebuild everything on release
           if [ "${{ github.event_name }}" = "release" ]; then
-
             SERVICES=("${!MAP[@]}")
-
           else
-
             for SERVICE in "${!MAP[@]}"; do
-
               if echo "$CHANGED" | grep -q "^${MAP[$SERVICE]}"; then
                 SERVICES+=("$SERVICE")
               fi
-
             done
-
-            # Shared files: rebuild everything
+          
+            # If shared files changed, rebuild everything
             if echo "$CHANGED" | grep -Eq "^(docker-compose.yml|\.github/)"; then
               SERVICES=("${!MAP[@]}")
             fi
-
           fi
 
-          echo "Services to build:"
-          printf '%s\n' "${SERVICES[@]}"
 
           echo "services=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
-
 
   # ================================================================
   # Build AMD64 images
   # ================================================================
   build-amd64:
-
     needs: detect-changes
-
     if: needs.detect-changes.outputs.services != '[]'
-
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           lfs: true
           fetch-tags: true
           fetch-depth: 0
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: fortiphyd
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Compute build metadata
         id: meta
         run: |
-
           echo "version=$(git describe --tags --always 2>/dev/null || echo '${{ github.sha }}' | cut -c1-8)" >> "$GITHUB_OUTPUT"
-
           echo "created=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push AMD64 images
+      - name: Build and push amd64 images
         run: |
-
           SERVICES=$(echo '${{ needs.detect-changes.outputs.services }}' | jq -r '.[]')
-
           set -euo pipefail
-
           for SERVICE in $SERVICES; do
-
             if [ ! -d "./${SERVICE}" ]; then
-              echo "Skipping ${SERVICE}: directory does not exist"
+              echo "⚠️ Skipping ${SERVICE}: directory does not exist"
               continue
             fi
-
-            IMAGE="${REGISTRY}/${IMAGE_NAMESPACE}/grfics-${SERVICE}"
-
-            echo "Building ${IMAGE}:${DOCKER_TAG}-amd64"
-
+            IMAGE="${DOCKERHUB_NAMESPACE}/grfics-${SERVICE}"
+            echo "🚀 Building ${IMAGE}:${DOCKER_TAG} (amd64)"
             docker buildx build \
               --platform linux/amd64 \
               --tag "${IMAGE}:${DOCKER_TAG}-amd64" \
@@ -168,69 +124,46 @@ jobs:
               --build-arg "BUILD_VERSION=${{ steps.meta.outputs.version }}" \
               --build-arg "BUILD_CREATED=${{ steps.meta.outputs.created }}" \
               "./${SERVICE}"
-
           done
-
+          echo "🧹 Cleaning local build cache to free space..."
+          docker builder prune -af || true
+          docker system prune -af || true
 
   # ================================================================
   # Build ARM64 images
   # ================================================================
   build-arm64:
-
     needs: detect-changes
-
     if: needs.detect-changes.outputs.services != '[]'
-
     runs-on: ubuntu-24.04-arm
-
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           lfs: true
           fetch-tags: true
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Compute build metadata
         id: meta
         run: |
-
           echo "version=$(git describe --tags --always 2>/dev/null || echo '${{ github.sha }}' | cut -c1-8)" >> "$GITHUB_OUTPUT"
-
           echo "created=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push ARM64 images
+      - name: Build and push arm64 images
         run: |
-
           SERVICES=$(echo '${{ needs.detect-changes.outputs.services }}' | jq -r '.[]')
-
           set -euo pipefail
-
           for SERVICE in $SERVICES; do
-
             if [ ! -d "./${SERVICE}" ]; then
-              echo "Skipping ${SERVICE}: directory does not exist"
+              echo "⚠️ Skipping ${SERVICE}: directory does not exist"
               continue
             fi
-
-            IMAGE="${REGISTRY}/${IMAGE_NAMESPACE}/grfics-${SERVICE}"
-
-            echo "Building ${IMAGE}:${DOCKER_TAG}-arm64"
-
+            IMAGE="${DOCKERHUB_NAMESPACE}/grfics-${SERVICE}"
+            echo "🚀 Building ${IMAGE}:${DOCKER_TAG} (arm64)"
             docker buildx build \
               --platform linux/arm64 \
               --tag "${IMAGE}:${DOCKER_TAG}-arm64" \
@@ -242,61 +175,54 @@ jobs:
               --build-arg "BUILD_VERSION=${{ steps.meta.outputs.version }}" \
               --build-arg "BUILD_CREATED=${{ steps.meta.outputs.created }}" \
               "./${SERVICE}"
-
           done
-
+          echo "🧹 Cleaning local build cache to free space..."
+          docker builder prune -af || true
+          docker system prune -af || true
 
   # ================================================================
-  # Create multi-architecture manifests
+  # Combine manifests once both architectures exist
   # ================================================================
   create-manifests:
-
     runs-on: ubuntu-latest
-
-    needs:
-      - detect-changes
-      - build-amd64
-      - build-arm64
-
+    needs: [ detect-changes, build-amd64, build-arm64 ]
     if: needs.detect-changes.outputs.services != '[]'
-
     permissions:
       contents: read
-      packages: write
-
+      id-token: write
     steps:
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Create multi-architecture manifests
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: "v2.4.1"
+
+      - name: Create and push multi-arch manifests + sign
+        env:
+          COSIGN_YES: "true"
         run: |
-
           set -euo pipefail
-
           SERVICES=$(echo '${{ needs.detect-changes.outputs.services }}' | jq -r '.[]')
-
           for SERVICE in $SERVICES; do
-
-            REPO="${REGISTRY}/${IMAGE_NAMESPACE}/grfics-${SERVICE}"
-
+            REPO="${DOCKERHUB_NAMESPACE}/grfics-${SERVICE}"
             IMAGE="${REPO}:${DOCKER_TAG}"
 
-            echo "Creating multi-architecture manifest for ${IMAGE}"
-
+            echo "🔗 Creating multi-arch manifest for ${IMAGE}"
             docker buildx imagetools create \
               -t "${IMAGE}" \
               "${REPO}:${DOCKER_TAG}-amd64" \
               "${REPO}:${DOCKER_TAG}-arm64"
+            echo "✅ Multi-arch manifest published for ${IMAGE}"
 
-            echo "Multi-architecture image published:"
-            echo "${IMAGE}"
-
+            echo "🔎 Resolving digest for ${IMAGE}"
+            DIGEST="$(docker buildx imagetools inspect "${IMAGE}" --format '{{json .Manifest}}' | jq -r '.digest')"
+            echo "🔏 Signing ${IMAGE}@${DIGEST} (keyless, GitHub OIDC, recursive)"
+            cosign sign -y "${REPO}@${DIGEST}"
+            echo "✅ Signed ${IMAGE}@${DIGEST}"
           done
