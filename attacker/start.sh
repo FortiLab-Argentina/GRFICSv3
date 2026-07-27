@@ -19,7 +19,7 @@ fi
 export DISPLAY=${DISPLAY:-:1}
 export RESOLUTION=${RESOLUTION:-1280x720}
 
-route add -net 192.168.243.0/24 gw 192.168.243.49
+route add -net 192.168.243.0/24 gw 192.168.243.33
 
 # Start supervisord (the default CMD will run supervisord, but start.sh can exec it)
 exec "$@"
