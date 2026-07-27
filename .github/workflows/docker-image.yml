@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'ot_portal/**'
+      - 'transform_config/**'
+      - 'transform_tools/**'
 
   release:
     types:
