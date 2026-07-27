@@ -133,36 +133,37 @@ services:
     # Optional if you want to override default CMD
     # command: sh -c "./simulation/simulation & cd modbus && ./run_all.sh"
 
-  # kali:
-  #   image: fortiphyd/grfics-attacker
-  #   container_name: kali
-  #   hostname: kali
-  #   build:
-  #     context: ./attacker
-  #     args:
-  #       BUILD_VERSION: ${BUILD_VERSION:-unknown}
-  #       BUILD_CREATED: ${BUILD_CREATED:-unknown}
-  #   cap_add:
-  #     - NET_ADMIN
-  #   ports:
-  #     - "6088:6080"
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 30s
-  #   dns:
-  #     - 192.168.90.200
-  #   networks:
-  #     a-grfics-admin:
-  #       priority: 10
-  #     c-dmz-net:
-  #       ipv4_address: 192.168.90.6
-  #       priority: 100
-  #   sysctls:
-  #     net.ipv4.conf.default.arp_announce: 2
-  #     net.ipv4.conf.all.arp_announce: 2
+  kali:
+    # image: fortiphyd/grfics-attacker
+    image: ghcr.io/fortilab-argentina/grfics-attacker:latest
+    container_name: kali
+    hostname: kali
+    # build:
+    #  context: ./attacker
+    #  args:
+    #    BUILD_VERSION: ${BUILD_VERSION:-unknown}
+    #    BUILD_CREATED: ${BUILD_CREATED:-unknown}
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "6088:6080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    dns:
+      - 192.168.243.33
+    networks:
+      a-grfics-admin:
+        priority: 10
+      d-level2-net:
+        ipv4_address: 192.168.243.40
+        priority: 100
+    sysctls:
+      net.ipv4.conf.default.arp_announce: 2
+      net.ipv4.conf.all.arp_announce: 2
 
   # router:
   #   image: fortiphyd/grfics-router
