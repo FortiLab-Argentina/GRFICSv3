@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OT Lab Portal v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1318;
+    --bg3: #141920;
+    --border: #1e2830;
+    --green: #00ff88;
+    --red: #ff3355;
+    --orange: #ff9900;
+    --yellow: #ffcc00;
+    --blue: #00aaff;
+    --text: #c8d8e8;
+    --text2: #6a8090;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); pointer-events: none; z-index: 1000; }
+
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--mono); font-size: 18px; color: var(--green); letter-spacing: 2px; }
+  .logo span { color: var(--text2); }
+  .header-status { margin-left: auto; display: flex; gap: 20px; align-items: center; font-family: var(--mono); font-size: 12px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--border); background: var(--bg3); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text2); }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .dot.orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr 480px; gap: 1px; background: var(--border); height: calc(100vh - 53px); }
+  .panel { background: var(--bg2); overflow-y: auto; }
+  .panel-header { padding: 10px 16px; background: var(--bg3); border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+  .panel-header::before { content: '//'; color: var(--green); }
+
+  .section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .section-title { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+
+  .container-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .container-name { font-family: var(--mono); font-size: 12px; }
+  .container-status { font-family: var(--mono); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+
+  .btn { padding: 5px 10px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-family: var(--mono); font-size: 11px; cursor: pointer; border-radius: 2px; transition: all 0.15s; letter-spacing: 0.5px; }
+  .btn:hover { border-color: var(--green); color: var(--green); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.danger { border-color: rgba(255,51,85,0.4); color: var(--red); }
+  .btn.danger:hover { background: rgba(255,51,85,0.1); }
+  .btn.primary { border-color: var(--green); color: var(--green); }
+  .btn.primary:hover { background: rgba(0,255,136,0.1); }
+  .btn.warning { border-color: var(--orange); color: var(--orange); }
+  .btn.warning:hover { background: rgba(255,153,0,0.1); }
+  .btn.blue { border-color: var(--blue); color: var(--blue); }
+  .btn-group { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .io-item { padding: 5px 8px; border: 1px solid var(--border); border-radius: 2px; font-family: var(--mono); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+
+  /* Center */
+  .center-panel { display: flex; flex-direction: column; }
+  .pressure-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .gauge { height: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  .gauge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--yellow), var(--red)); transition: width 0.5s ease; }
+  .gauge-markers { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--text2); margin-bottom: 12px; }
+  .pressure-value { font-family: var(--mono); font-size: 44px; font-weight: bold; letter-spacing: -2px; line-height: 1; }
+  .pressure-value.safe { color: var(--green); }
+  .pressure-value.warning { color: var(--yellow); }
+  .pressure-value.danger { color: var(--red); text-shadow: 0 0 20px var(--red); animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.7; } }
+  .metrics-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .metric-card { background: var(--bg3); border: 1px solid var(--border); padding: 8px; border-radius: 2px; }
+  .metric-label { font-family: var(--mono); font-size: 9px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .metric-value { font-family: var(--mono); font-size: 16px; color: var(--text); }
+  .metric-value.active { color: var(--green); }
+  .metric-value.warn { color: var(--orange); }
+
+  /* Attack cards */
+  .attack-section { flex: 1; overflow-y: auto; padding: 0; }
+  .attack-card { border-bottom: 1px solid var(--border); }
+  .attack-card-header { padding: 10px 20px; background: var(--bg3); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .attack-card-header:hover { background: rgba(0,255,136,0.05); }
+  .attack-card-title { font-family: var(--mono); font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .attack-card-title .vnum { color: var(--text2); font-size: 10px; }
+  .attack-badge { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; letter-spacing: 1px; }
+  .badge-http { background: rgba(0,170,255,0.15); color: var(--blue); border: 1px solid rgba(0,170,255,0.3); }
+  .badge-modbus { background: rgba(255,153,0,0.15); color: var(--orange); border: 1px solid rgba(255,153,0,0.3); }
+  .badge-rce { background: rgba(255,51,85,0.15); color: var(--red); border: 1px solid rgba(255,51,85,0.3); }
+  .badge-nmap { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .attack-card-body { padding: 12px 20px; display: none; border-top: 1px solid var(--border); }
+  .attack-card-body.open { display: block; }
+  .attack-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
+  .step-list { list-style: none; }
+  .step-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .step-num { font-family: var(--mono); font-size: 10px; color: var(--text2); width: 24px; flex-shrink: 0; }
+  .step-label { font-size: 12px; color: var(--text); flex: 1; }
+  .step-btns { display: flex; gap: 4px; }
+
+  /* Right panel */
+  .io-control-grid { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .io-control-item { border: 1px solid var(--border); border-radius: 2px; padding: 9px 12px; }
+  .io-control-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .io-control-name { font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .io-control-ip { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+  .slider-container { display: flex; align-items: center; gap: 8px; }
+  .slider { flex: 1; -webkit-appearance: none; height: 4px; background: var(--bg3); border-radius: 2px; outline: none; cursor: pointer; }
+  .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 2px; background: var(--green); cursor: pointer; }
+  .slider-value { font-family: var(--mono); font-size: 11px; color: var(--green); width: 44px; text-align: right; }
+  .io-btn-row { display: flex; gap: 4px; margin-top: 6px; }
+
+  /* Terminal */
+  .terminal { background: #040608; border: 1px solid var(--border); border-radius: 2px; font-family: var(--mono); font-size: 11px; padding: 10px; height: 220px; overflow-y: auto; margin: 10px 14px 0; }
+  .term-line { line-height: 1.7; color: var(--green); word-break: break-all; }
+  .term-line.cmd { color: var(--blue); }
+  .term-line.info { color: var(--text2); }
+  .term-line.error { color: var(--red); }
+  .term-line.warn { color: var(--orange); }
+  .term-line.dim { color: #334455; }
+  .term-line.result { color: var(--text); }
+  .term-input-row { display: flex; gap: 8px; padding: 8px 14px 12px; }
+  .term-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-size: 11px; padding: 6px 10px; border-radius: 2px; outline: none; }
+  .term-input:focus { border-color: var(--green); }
+
+  /* Explosion */
+  .explosion-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,0,0,0.12); pointer-events: none; z-index: 500; animation: pulse-red 0.4s infinite alternate; }
+  @keyframes pulse-red { from { background: rgba(255,0,0,0.05); } to { background: rgba(255,0,0,0.18); } }
+  .explosion-alert { display: none; position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: var(--red); color: white; font-family: var(--mono); font-size: 18px; padding: 10px 30px; z-index: 501; letter-spacing: 3px; border-radius: 2px; }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: var(--bg); }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border); }
+
+  a { color: var(--blue); text-decoration: none; font-family: var(--mono); font-size: 11px; }
+  a:hover { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="explosion-overlay" id="explosionOverlay"></div>
+<div class="explosion-alert" id="explosionAlert">⚠ PRESSURE CRITICAL — 3200 kPa ⚠</div>
+
+<header>
+  <div class="logo">OT<span>/</span>LAB <span style="color:var(--text2);font-size:12px;letter-spacing:1px">PORTAL v2</span></div>
+  <div style="font-size:11px;color:var(--text2);font-family:var(--mono)">FORTINET CANADA // OT CHANNEL SE</div>
+  <div class="header-status">
+    <div class="status-pill"><div class="dot" id="plcDot"></div><span id="plcStatusText">PLC —</span></div>
+    <div class="status-pill"><div class="dot green"></div><span id="pressureHeader">— kPa</span></div>
+    <div class="status-pill"><div class="dot" id="simDot"></div><span>SIM</span></div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="panel scrollbar-thin">
+    <div class="panel-header">SYSTEM</div>
+
+    <div class="section">
+      <div class="section-title">Containers</div>
+      <div id="containerList"><div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Loading...</div></div>
+      <div class="btn-group">
+        <button class="btn primary" onclick="restartContainer('simulation')">↺ sim</button>
+        <button class="btn" onclick="restartContainer('plc')">↺ plc</button>
+        <button class="btn" onclick="restartContainer('HMI')">↺ HMI</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Remote IO</div>
+      <div class="io-grid" id="ioGrid"><div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Checking...</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Routes</div>
+      <div class="btn-group">
+        <button class="btn primary" onclick="fixRoutes()">▶ fix-routes</button>
+        <button class="btn" onclick="checkRoutes()">CHECK</button>
+      </div>
+      <div id="routeOutput" style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:8px;max-height:80px;overflow-y:auto"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">PLC Control</div>
+      <div class="btn-group">
+        <button class="btn primary" onclick="startPLC()">▶ START</button>
+        <button class="btn danger" onclick="stopPLC()">■ STOP</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Quick Links</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <a href="http://192.168.243.5" target="_blank">→ 3D Visualizer</a>
+        <a href="http://192.168.243.20:8080" target="_blank">→ OpenPLC Monitor</a>
+        <a href="http://192.168.243.36:6081" target="_blank">→ ScadaLTS HMI</a>
+        <a href="https://192.168.10.8" target="_blank">→ FortiAnalyzer</a>
+        <a href="http://192.168.10.11:6088" target="_blank">→ Kali VNC</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel center-panel">
+    <div class="panel-header">PROCESS MONITOR + ATTACKS</div>
+
+    <div class="pressure-section">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+        <div class="pressure-value safe" id="pressureValue">—</div>
+        <div style="font-family:var(--mono);font-size:14px;color:var(--text2)">kPa</div>
+        <div style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text2)">EXPLOSION @ 3200 kPa</div>
+      </div>
+      <div class="gauge"><div class="gauge-fill" id="gaugeFill"></div></div>
+      <div class="gauge-markers"><span>0</span><span>800</span><span>1600</span><span>2400</span><span style="color:var(--red)">3200 💥</span></div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Level</div><div class="metric-value" id="metricLevel">—</div></div>
+        <div class="metric-card"><div class="metric-label">Feed1 Valve</div><div class="metric-value" id="metricF1">—</div></div>
+        <div class="metric-card"><div class="metric-label">Feed2 Valve</div><div class="metric-value" id="metricF2">—</div></div>
+        <div class="metric-card"><div class="metric-label">Purge Valve</div><div class="metric-value" id="metricPurge">—</div></div>
+        <div class="metric-card"><div class="metric-label">Product Valve</div><div class="metric-value" id="metricProduct">—</div></div>
+      </div>
+    </div>
+
+    <div class="attack-section scrollbar-thin">
+
+      <!-- V1: HTTP Stop PLC -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V1</span> HTTP Stop PLC</div>
+          <div class="attack-badge badge-http">HTTP</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Stop the PLC via its web admin panel. No Modbus required. Works regardless of App Control policy on Modbus.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">POST /login → GET /stop_plc (openplc:openplc)</span>
+              <div class="step-btns"><button class="btn danger" onclick="stopPLC()">FIRE</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">Verify stopped in OpenPLC Monitor</span>
+              <div class="step-btns"><a href="http://192.168.95.2:8080" target="_blank"><button class="btn">OPEN</button></a></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">Restore — Start PLC</span>
+              <div class="step-btns"><button class="btn primary" onclick="startPLC()">RESTORE</button></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V2: Modbus Read + Write Purge -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V2</span> Modbus Read + Write — Virtual Patch Demo</div>
+          <div class="attack-badge badge-modbus">MODBUS</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Read Purge valve (FC4 — passes through FG). Then write to Purge (FC6 — blocked by OT-Virtual-Patch App Control profile). Shows FortiGate granular Modbus inspection.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">READ Purge — FC4 read_input_registers (95.12, slave=247)</span>
+              <div class="step-btns"><button class="btn blue" onclick="readPurge()">READ</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">WRITE Purge = 65535 — FC6 write_register (blocked by FG)</span>
+              <div class="step-btns"><button class="btn warning" onclick="writePurge(65535)">FIRE</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">READ again — confirm FG blocked write, read still works</span>
+              <div class="step-btns"><button class="btn blue" onclick="readPurge()">READ</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">Check FAZ — Modbus_Write.Single.Register = Block</span>
+              <div class="step-btns"><a href="https://192.168.10.8" target="_blank"><button class="btn">FAZ</button></a></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V3: Stop PLC + IO Manipulation -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V3</span> Stop PLC + Remote IO Manipulation</div>
+          <div class="attack-badge badge-modbus">MODBUS</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Stop PLC to disable PID correction. Write directly to remote IO — values persist with no controller running. Feed2 → MAX, Purge → 0, Product → 0.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">Stop PLC — disable PID correction loop</span>
+              <div class="step-btns"><button class="btn danger" onclick="stopPLC()">STOP PLC</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">write_register: Feed1=65535, Feed2=65535, Purge=0, Product=0</span>
+              <div class="step-btns"><button class="btn warning" onclick="attackIO('attack')">FIRE</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">Monitor pressure rise → target 3200 kPa</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">↑ GAUGE</span>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">Restore all IO to 0 + restart PLC</span>
+              <div class="step-btns">
+                <button class="btn primary" onclick="attackIO('restore')">RESTORE IO</button>
+                <button class="btn primary" onclick="startPLC()">START PLC</button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V4: PLC Setpoint Manipulation -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V4</span> PLC Setpoint Manipulation</div>
+          <div class="attack-badge badge-modbus">MODBUS</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Write pressure_sp=65535 and override_sp=0 to PLC registers. PLC targets 3200 kPa, safety protection disabled. Slow but works while PLC runs.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">write_register(reg=2, value=65535) — pressure_sp → MAX</span>
+              <div class="step-btns"><button class="btn warning" onclick="attackPressure()">FIRE</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">write_register(reg=3, value=0) — override_sp → disable safety</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">AUTO</span>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">Watch pressure rise slowly in gauge</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">~2hrs</span>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">Restore original values (pressure_sp=55295, override_sp=31675)</span>
+              <div class="step-btns"><button class="btn primary" onclick="pressureRestore()">RESTORE</button></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V5: Upload Malicious ST -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V5</span> Upload Malicious PLC Program</div>
+          <div class="attack-badge badge-rce">RCE</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Modify 326339.st: pressure_sp=65535, override_sp_real=0.0, product_flow_setpoint=65535. Upload via OpenPLC web interface. PLC compiles and runs malicious logic.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">Copy + modify 326339.st — raise all pressure parameters</span>
+              <div class="step-btns"><button class="btn danger" onclick="uploadMaliciousST()">UPLOAD</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">Verify in OpenPLC — new program compiled + running</span>
+              <div class="step-btns"><a href="http://192.168.243.20:8080" target="_blank"><button class="btn">OPEN</button></a></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">Watch pressure rise faster than V4</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">↑ GAUGE</span>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">Restore original program</span>
+              <div class="step-btns"><button class="btn primary" onclick="restoreOriginalST()">RESTORE</button></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V6: Recon + Nmap + Metasploit -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V6</span> OT Reconnaissance — Nmap + Metasploit Modbus</div>
+          <div class="attack-badge badge-nmap">RECON</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Full OT zone reconnaissance — service discovery, Modbus banner grabbing, OS fingerprinting, DoS. Each step triggers different IPS signatures in FAZ. Run docker restart simulation + drop_caches after.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">nmap -sV 192.168.95.0/24 — OT zone service discovery</span>
+              <div class="step-btns"><button class="btn" onclick="nmap('recon')">RUN</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">nmap --script modbus-discover /24 -p 502 — Modbus device discovery</span>
+              <div class="step-btns"><button class="btn" onclick="nmap('modbus-discover')">RUN</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">MSF modbus_banner_grabbing — 192.168.95.1-20 — device info</span>
+              <div class="step-btns"><button class="btn blue" onclick="msfModbusBanner()">RUN</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">nmap -sV -O -A plc.ot.sdx — OS fingerprint + aggressive</span>
+              <div class="step-btns"><button class="btn warning" onclick="nmap('aggressive')">RUN</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">05</span>
+              <span class="step-label">nmap --script dos plc.ot.sdx — DoS script scan</span>
+              <div class="step-btns"><button class="btn danger" onclick="nmap('dos')">RUN</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">06</span>
+              <span class="step-label">Check FAZ — IPS signatures triggered</span>
+              <div class="step-btns"><a href="https://192.168.10.8" target="_blank"><button class="btn">FAZ</button></a></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- V7: Write Coil Stop Reactor -->
+      <div class="attack-card">
+        <div class="attack-card-header" onclick="toggleCard(this)">
+          <div class="attack-card-title"><span class="vnum">V7</span> Modbus Stop Reactor — Write Coil FC5</div>
+          <div class="attack-badge badge-modbus">MODBUS</div>
+        </div>
+        <div class="attack-card-body">
+          <div class="attack-desc">Write to run_bit coil (address 40) on PLC to stop the reactor. FC5 Write Single Coil. Blocked by OT-Virtual-Patch App Control when active.</div>
+          <ul class="step-list">
+            <li class="step-item">
+              <span class="step-num">01</span>
+              <span class="step-label">FC5 write_coil(coil=40, value=False, slave=1) — run_bit → STOP</span>
+              <div class="step-btns"><button class="btn danger" onclick="writeCoil(false)">STOP</button></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">02</span>
+              <span class="step-label">Verify reactor STOPPED in ScadaLTS</span>
+              <div class="step-btns"><a href="http://192.168.243.36:6081" target="_blank"><button class="btn">HMI</button></a></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">03</span>
+              <span class="step-label">Check FAZ — Modbus_Write.Single.Coil = Block (if profile active)</span>
+              <div class="step-btns"><a href="https://192.168.10.8" target="_blank"><button class="btn">FAZ</button></a></div>
+            </li>
+            <li class="step-item">
+              <span class="step-num">04</span>
+              <span class="step-label">FC5 write_coil(coil=40, value=True) — run_bit → START</span>
+              <div class="step-btns"><button class="btn primary" onclick="writeCoil(true)">RESTORE</button></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: IO Control + Terminal -->
+  <div class="panel scrollbar-thin">
+    <div class="panel-header">REMOTE IO CONTROL</div>
+
+    <div class="io-control-grid">
+      <div class="io-control-item">
+        <div class="io-control-header">
+          <div class="io-control-name">Feed 1</div>
+          <div class="io-control-ip">95.10 // slave=1 // reg=1</div>
+        </div>
+        <div class="slider-container">
+          <input type="range" class="slider" min="0" max="65535" value="0" id="feed1Slider" oninput="updateSlider('feed1Slider','feed1Val')">
+          <div class="slider-value" id="feed1Val">0%</div>
+        </div>
+        <div class="io-btn-row">
+          <button class="btn" onclick="writeIO('192.168.95.10', document.getElementById('feed1Slider').value, 1)">WRITE</button>
+          <button class="btn primary" onclick="setSlider('feed1Slider','feed1Val',65535);writeIO('192.168.95.10',65535,1)">MAX</button>
+          <button class="btn" onclick="setSlider('feed1Slider','feed1Val',0);writeIO('192.168.95.10',0,1)">ZERO</button>
+        </div>
+      </div>
+
+      <div class="io-control-item">
+        <div class="io-control-header">
+          <div class="io-control-name">Feed 2</div>
+          <div class="io-control-ip">95.11 // slave=247 // reg=1</div>
+        </div>
+        <div class="slider-container">
+          <input type="range" class="slider" min="0" max="65535" value="0" id="feed2Slider" oninput="updateSlider('feed2Slider','feed2Val')">
+          <div class="slider-value" id="feed2Val">0%</div>
+        </div>
+        <div class="io-btn-row">
+          <button class="btn" onclick="writeIO('192.168.95.11', document.getElementById('feed2Slider').value)">WRITE</button>
+          <button class="btn primary" onclick="setSlider('feed2Slider','feed2Val',65535);writeIO('192.168.95.11',65535)">MAX</button>
+          <button class="btn" onclick="setSlider('feed2Slider','feed2Val',0);writeIO('192.168.95.11',0)">ZERO</button>
+        </div>
+      </div>
+
+      <div class="io-control-item">
+        <div class="io-control-header">
+          <div class="io-control-name">Purge</div>
+          <div class="io-control-ip">95.12 // slave=247 // reg=1</div>
+        </div>
+        <div class="slider-container">
+          <input type="range" class="slider" min="0" max="65535" value="0" id="purgeSlider" oninput="updateSlider('purgeSlider','purgeVal')">
+          <div class="slider-value" id="purgeVal">0%</div>
+        </div>
+        <div class="io-btn-row">
+          <button class="btn" onclick="writeIO('192.168.95.12', document.getElementById('purgeSlider').value)">WRITE</button>
+          <button class="btn primary" onclick="setSlider('purgeSlider','purgeVal',65535);writeIO('192.168.95.12',65535)">MAX</button>
+          <button class="btn" onclick="setSlider('purgeSlider','purgeVal',0);writeIO('192.168.95.12',0)">ZERO</button>
+        </div>
+      </div>
+
+      <div class="io-control-item">
+        <div class="io-control-header">
+          <div class="io-control-name">Product</div>
+          <div class="io-control-ip">95.13 // slave=247 // reg=1</div>
+        </div>
+        <div class="slider-container">
+          <input type="range" class="slider" min="0" max="65535" value="0" id="productSlider" oninput="updateSlider('productSlider','productVal')">
+          <div class="slider-value" id="productVal">0%</div>
+        </div>
+        <div class="io-btn-row">
+          <button class="btn" onclick="writeIO('192.168.95.13', document.getElementById('productSlider').value)">WRITE</button>
+          <button class="btn primary" onclick="setSlider('productSlider','productVal',65535);writeIO('192.168.95.13',65535)">MAX</button>
+          <button class="btn" onclick="setSlider('productSlider','productVal',0);writeIO('192.168.95.13',0)">ZERO</button>
+        </div>
+      </div>
+
+      <div class="io-control-item">
+        <div class="io-control-header">
+          <div class="io-control-name">Tank</div>
+          <div class="io-control-ip">95.14 // slave=247 // reg=1</div>
+        </div>
+        <div class="slider-container">
+          <input type="range" class="slider" min="0" max="65535" value="0" id="tankSlider" oninput="updateSlider('tankSlider','tankVal')">
+          <div class="slider-value" id="tankVal">0%</div>
+        </div>
+        <div class="io-btn-row">
+          <button class="btn" onclick="writeIO('192.168.95.14', document.getElementById('tankSlider').value)">WRITE</button>
+          <button class="btn primary" onclick="setSlider('tankSlider','tankVal',65535);writeIO('192.168.95.14',65535)">MAX</button>
+          <button class="btn" onclick="setSlider('tankSlider','tankVal',0);writeIO('192.168.95.14',0)">ZERO</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-header" style="margin-top:1px">KALI OUTPUT TERMINAL <button class="btn danger" style="margin-left:auto;font-size:10px;padding:2px 8px" onclick="killKali()">✕ KILL PROCS</button></div>
+    <div class="terminal scrollbar-thin" id="terminal">
+      <div class="term-line dim">// OT Lab Terminal — Kali Docker</div>
+      <div class="term-line dim">// Commands and results appear here</div>
+    </div>
+    <div class="term-input-row">
+      <input type="text" class="term-input" id="termInput" placeholder="python3 | nmap | ping | curl ..." onkeydown="if(event.key==='Enter')runKaliCmd()">
+      <button class="btn primary" onclick="runKaliCmd()">▶</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = '';
+
+// ─── Terminal ─────────────────────────────────────────────────────────────────
+
+function log(msg, type='') {
+  const t = document.getElementById('terminal');
+  const d = new Date().toTimeString().slice(0,8);
+  const line = document.createElement('div');
+  line.className = `term-line ${type}`;
+  line.textContent = `[${d}] ${msg}`;
+  t.appendChild(line);
+  t.scrollTop = t.scrollHeight;
+}
+
+function logCmd(cmd) { log(`CMD: ${cmd}`, 'cmd'); }
+function logResult(r) {
+  if (r.friendly_cmd) logCmd(r.friendly_cmd);
+  if (r.stdout) r.stdout.split('\n').forEach(l => { if(l.trim()) log(l, 'result'); });
+  if (r.stderr && r.rc !== 0) r.stderr.split('\n').forEach(l => { if(l.trim()) log(l, 'error'); });
+}
+
+// ─── Sliders ──────────────────────────────────────────────────────────────────
+
+function updateSlider(sid, vid) {
+  const v = document.getElementById(sid).value;
+  document.getElementById(vid).textContent = Math.round((v/65535)*100) + '%';
+}
+
+function setSlider(sid, vid, val) {
+  document.getElementById(sid).value = val;
+  document.getElementById(vid).textContent = Math.round((val/65535)*100) + '%';
+}
+
+function toggleCard(h) { h.nextElementSibling.classList.toggle('open'); }
+
+// ─── System ───────────────────────────────────────────────────────────────────
+
+async function loadContainers() {
+  try {
+    const r = await fetch('/api/containers');
+    const data = await r.json();
+    document.getElementById('containerList').innerHTML = data.map(c => `
+      <div class="container-item">
+        <div class="container-name">${c.name}</div>
+        <div class="container-status">
+          <div class="dot ${c.up?'green':'red'}"></div>
+          <span style="color:var(--${c.up?'green':'red'})">${c.up?'UP':'DOWN'}</span>
+        </div>
+      </div>`).join('');
+    const sim = data.find(c => c.name === 'simulation');
+    document.getElementById('simDot').className = `dot ${sim?.up?'green':'red'}`;
+  } catch(e){}
+}
+
+async function restartContainer(name) {
+  log(`Restarting ${name}...`, 'warn');
+  const r = await fetch(`/api/containers/restart/${name}`, {method:'POST'});
+  const d = await r.json();
+  log(d.stdout || d.stderr || 'done', d.rc===0?'':'error');
+  setTimeout(loadContainers, 4000);
+}
+
+async function loadIOStatus() {
+  try {
+    const r = await fetch('/api/io-status');
+    const data = await r.json();
+    document.getElementById('ioGrid').innerHTML = data.map(io => `
+      <div class="io-item">
+        <div class="dot ${io.up?'green':'red'}"></div>
+        <span>.${io.ip.split('.')[3]}</span>
+        <span style="color:var(--${io.up?'green':'red'})">${io.up?'UP':'DN'}</span>
+      </div>`).join('');
+  } catch(e){}
+}
+
+async function fixRoutes() {
+  log('Running fix-kali-route.sh...', 'info');
+  const r = await fetch('/api/fix-routes', {method:'POST'});
+  const d = await r.json();
+  log(d.stdout || 'done', d.rc===0?'':'error');
+}
+
+async function checkRoutes() {
+  const r = await fetch('/api/routes');
+  const d = await r.json();
+  const out = document.getElementById('routeOutput');
+  out.innerHTML = Object.entries(d).map(([c,routes]) =>
+    `<span style="color:var(--blue)">=== ${c} ===</span>\n${routes}`
+  ).join('\n\n');
+}
+
+// ─── PLC ──────────────────────────────────────────────────────────────────────
+
+async function stopPLC() {
+  log('Stopping PLC via HTTP...', 'warn');
+  const r = await fetch('/api/plc/stop', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+  setTimeout(loadPLCStatus, 2000);
+}
+
+async function startPLC() {
+  log('Starting PLC...', 'info');
+  const r = await fetch('/api/plc/start', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+  setTimeout(loadPLCStatus, 2000);
+}
+
+async function loadPLCStatus() {
+  try {
+    const r = await fetch('/api/plc/status');
+    const d = await r.json();
+    const running = d.status === 'Running';
+    document.getElementById('plcDot').className = `dot ${running?'green':'red'}`;
+    document.getElementById('plcStatusText').textContent = `PLC ${d.status.toUpperCase()}`;
+  } catch(e){}
+}
+
+// ─── Pressure ─────────────────────────────────────────────────────────────────
+
+async function updatePressure() {
+  try {
+    const r = await fetch('/api/pressure');
+    const d = await r.json();
+    if (!d.ok) return;
+    const p = d.pressure;
+    const pct = Math.min((p/3200)*100, 100);
+    document.getElementById('pressureValue').textContent = p;
+    document.getElementById('pressureHeader').textContent = p + ' kPa';
+    document.getElementById('gaugeFill').style.width = pct + '%';
+    const el = document.getElementById('pressureValue');
+    el.className = p < 2000 ? 'pressure-value safe' : p < 2800 ? 'pressure-value warning' : 'pressure-value danger';
+    document.getElementById('metricLevel').textContent = d.level + '%';
+    document.getElementById('metricF1').textContent = d.f1_valve.toFixed(1) + '%';
+    document.getElementById('metricF2').textContent = d.f2_valve.toFixed(1) + '%';
+    const purgeEl = document.getElementById('metricPurge');
+    purgeEl.textContent = d.purge_valve.toFixed(1) + '%';
+    purgeEl.className = d.purge_valve < 5 ? 'metric-value active' : 'metric-value';
+    document.getElementById('metricProduct').textContent = d.product_valve.toFixed(1) + '%';
+    // Explosion alert
+    const show = p >= 3000;
+    document.getElementById('explosionOverlay').style.display = show ? 'block' : 'none';
+    document.getElementById('explosionAlert').style.display = show ? 'block' : 'none';
+  } catch(e){}
+}
+
+// ─── IO Write ─────────────────────────────────────────────────────────────────
+
+async function writeIO(ip, value, slave=247) {
+  const r = await fetch('/api/modbus/write', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ip, register:1, value:parseInt(value), slave:slave})
+  });
+  const d = await r.json();
+  logResult(d);
+}
+
+// ─── Attack presets ───────────────────────────────────────────────────────────
+
+async function attackIO(action) {
+  log(`IO attack: ${action}`, 'warn');
+  const r = await fetch('/api/attack/io-manipulation', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action})
+  });
+  const data = await r.json();
+  data.forEach(item => {
+    log(`CMD: FC6 write_register(ip=${item.ip}, reg=1, value=${item.value}, slave=247)`, 'cmd');
+    log(`${item.label}: ${item.result}`, item.result==='done'?'':'error');
+  });
+}
+
+async function attackPressure() {
+  log('Writing pressure_sp=65535, override_sp=0 to PLC...', 'warn');
+  const r = await fetch('/api/attack/pressure-setpoint', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({pressure_sp:65535, override_sp:0})
+  });
+  const d = await r.json();
+  logResult(d);
+}
+
+async function pressureRestore() {
+  log('Restoring pressure_sp=55295, override_sp=31675...', 'info');
+  const r = await fetch('/api/attack/pressure-restore', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+}
+
+async function readPurge() {
+  log('Reading Purge valve registers...', 'info');
+  const r = await fetch('/api/attack/modbus-read-purge', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+}
+
+async function writePurge(value) {
+  log(`Writing Purge = ${value}...`, 'warn');
+  const r = await fetch('/api/attack/modbus-write-purge', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({value})
+  });
+  const d = await r.json();
+  logResult(d);
+}
+
+async function uploadMaliciousST() {
+  log('Uploading malicious PLC program...', 'warn');
+  const r = await fetch('/api/attack/upload-malicious-st', {method:'POST'});
+  const d = await r.json();
+  log(`CMD: ${d.friendly_cmd}`, 'cmd');
+  log('Step 1 copy: ' + d.step1_copy);
+  log('Step 2 modify: ' + d.step2_modify);
+  log('Step 3 copy to kali: ' + d.step3_copy_to_kali);
+  log('Step 4 upload: ' + d.step4_upload, d.step4_upload.includes('200')?'':'error');
+}
+
+async function restoreOriginalST() {
+  log('Restoring original PLC program...', 'info');
+  const r = await fetch('/api/attack/restore-original-st', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+}
+
+async function nmap(type) {
+  const labels = {
+    recon: 'nmap -sV 192.168.95.0/24',
+    aggressive: 'nmap -sV -O -A plc.ot.sdx',
+    dos: 'nmap --script dos plc.ot.sdx'
+  };
+  log(`Starting ${labels[type]}...`, 'warn');
+  log('CMD: ' + labels[type], 'cmd');
+  const r = await fetch('/api/attack/nmap', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({type})
+  });
+  const d = await r.json();
+  if (d.stdout) d.stdout.split('\n').forEach(l => { if(l.trim()) log(l, 'result'); });
+  if (d.stderr) log(d.stderr, 'error');
+}
+
+async function writeCoil(value) {
+  const action = value ? 'START' : 'STOP';
+  log(`FC5 write_coil(coil=40, value=${value}, slave=1) → run_bit ${action}`, 'warn');
+  const r = await fetch('/api/attack/write-coil', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({value})
+  });
+  const d = await r.json();
+  logResult(d);
+}
+
+async function msfModbusBanner() {
+  log('MSF modbus_banner_grabbing RHOSTS=192.168.95.1-20...', 'warn');
+  const r = await fetch('/api/attack/msf-modbus-banner', {method:'POST'});
+  const d = await r.json();
+  logResult(d);
+}
+
+async function killKali() {
+  log('Killing nmap and python3 in kali...', 'warn');
+  const r = await fetch('/api/kali/kill', {method:'POST'});
+  const d = await r.json();
+  log(d.stdout || 'done', 'info');
+}
+
+async function runKaliCmd() {
+  const input = document.getElementById('termInput');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  log(`$ ${cmd}`, 'cmd');
+  input.value = '';
+  const r = await fetch('/api/kali/exec', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({cmd})
+  });
+  const d = await r.json();
+  if (d.error) { log(d.error, 'error'); return; }
+  logResult(d);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+loadContainers();
+loadIOStatus();
+loadPLCStatus();
+updatePressure();
+
+setInterval(loadContainers, 15000);
+setInterval(loadIOStatus, 10000);
+setInterval(loadPLCStatus, 10000);
+setInterval(updatePressure, 2000);
+</script>
+</body>
+</html>
