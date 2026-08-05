@@ -174,16 +174,7 @@
       <div class="section-title">Remote IO</div>
       <div class="io-grid" id="ioGrid"><div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Checking...</div></div>
     </div>
-<!--
-    <div class="section">
-      <div class="section-title">Routes</div>
-      <div class="btn-group">
-        <button class="btn primary" onclick="fixRoutes()">▶ fix-routes</button>
-        <button class="btn" onclick="checkRoutes()">CHECK</button>
-      </div>
-      <div id="routeOutput" style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:8px;max-height:80px;overflow-y:auto"></div>
-    </div>
--->
+
     <div class="section">
       <div class="section-title">PLC Control</div>
       <div class="btn-group">
@@ -644,23 +635,6 @@ async function loadIOStatus() {
   } catch(e){}
 }
 
-/*
-async function fixRoutes() {
-  log('Running fix-kali-route.sh...', 'info');
-  const r = await fetch('/api/fix-routes', {method:'POST'});
-  const d = await r.json();
-  log(d.stdout || 'done', d.rc===0?'':'error');
-}
-
-async function checkRoutes() {
-  const r = await fetch('/api/routes');
-  const d = await r.json();
-  const out = document.getElementById('routeOutput');
-  out.innerHTML = Object.entries(d).map(([c,routes]) =>
-    `<span style="color:var(--blue)">=== ${c} ===</span>\n${routes}`
-  ).join('\n\n');
-}
-*/
 // ─── PLC ──────────────────────────────────────────────────────────────────────
 
 async function stopPLC() {
