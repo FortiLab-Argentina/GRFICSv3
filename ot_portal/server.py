@@ -94,6 +94,7 @@ def io_status():
         })
     return jsonify(results)
 
+"""
 @app.route('/api/fix-routes', methods=['POST'])
 def fix_routes():
     r = run_cmd("bash /root/fix-kali-route.sh", timeout=30)
@@ -107,7 +108,7 @@ def routes():
         r = run_cmd(f"docker exec {c} ip route show 2>/dev/null || docker exec {c} /usr/sbin/route -n 2>/dev/null")
         results[c] = r["stdout"]
     return jsonify(results)
-
+"""
 @app.route('/api/pressure')
 def pressure():
     return jsonify(get_pressure())
