@@ -275,9 +275,9 @@ c.close()
 def modbus_write_purge():
     data = request.json
     value = data.get("value", 65535)
-    cmd = f"""docker exec kali python3 -c "from pymodbus.client import ModbusTcpClient; c = ModbusTcpClient('purge.ot.sdx', port=502); c.connect(); c.write_register(1, {value}, slave=247); c.close(); print('done')" """
+    cmd = f"""docker exec kali python3 -c "from pymodbus.client import ModbusTcpClient; c = ModbusTcpClient('purge.ot.sdx', port=502); c.connect(); c.write_register(1, {value}, device_id=247); c.close(); print('done')" """
     r = run_cmd(cmd, timeout=15)
-    r["friendly_cmd"] = f"FC6 write_register(ip=purge.ot.sdx, address=1, value={value}, slave=247)"
+    r["friendly_cmd"] = f"FC6 write_register(ip=purge.ot.sdx, address=1, value={value}, device_id=247)"
     return jsonify(r)
 
 # ─── Nmap ─────────────────────────────────────────────────────────────────────
