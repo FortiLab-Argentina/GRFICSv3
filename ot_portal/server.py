@@ -263,7 +263,7 @@ def modbus_read_purge():
 from pymodbus.client import ModbusTcpClient
 c = ModbusTcpClient('purge.ot.sdx', port=502)
 c.connect()
-r = c.read_input_registers(address=1, count=2, slave=247)
+r = c.read_input_registers(address=1, count=2, device_id=247)
 print('Purge registers:', r.registers)
 c.close()
 " """
