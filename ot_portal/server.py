@@ -268,7 +268,7 @@ print('Purge registers:', r.registers)
 c.close()
 " """
     r = run_cmd(cmd, timeout=15)
-    r["friendly_cmd"] = "FC4 read_input_registers(ip=purge.ot.sdx, address=1, count=2, slave=247)"
+    r["friendly_cmd"] = "FC4 read_input_registers(ip=purge.ot.sdx, address=1, count=2, device_id=247)"
     return jsonify(r)
 
 @app.route('/api/attack/modbus-write-purge', methods=['POST'])
